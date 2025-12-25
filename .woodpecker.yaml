@@ -1,0 +1,25 @@
+steps:
+  - name: build
+    image: woodpeckerci/plugin-docker-buildx
+    settings:
+      repo: ghcr.io/hnykda/danielhnyk-blog
+      registry: ghcr.io
+      username: hnykda
+      password:
+        from_secret: ghcr_token
+      tag: ${CI_COMMIT_SHA:0:8}
+      platforms: linux/amd64
+
+  - name: deploy
+    image: alpine/helm:3.14.0
+    environment:
+      KUBECONFIG_DATA:
+        from_secret: kubeconfig
+    commands:
+      - mkdir -p ~/.kube
+      - echo "$KUBECONFIG_DATA" | base64 -d > ~/.kube/config
+      - helm upgrade --install blog ./chart
+          --namespace apps
+          --set image=ghcr.io/hnykda/danielhnyk-blog:${CI_COMMIT_SHA:0:8}
+    when:
+      branch: main
