@@ -11,7 +11,7 @@ steps:
     image: alpine/helm:3.14.0
     environment:
       KUBECONFIG_DATA:
-        from_secret: kubeconfig
+        from_secret: hera_kubeconfig
     commands:
       - mkdir -p ~/.kube
       - echo "$KUBECONFIG_DATA" | base64 -d > ~/.kube/config
