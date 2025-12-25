@@ -1,4 +1,4 @@
 image:
-  repository: registry.container-registry:5000/danielhnyk-blog
+  repository: localhost:32000/danielhnyk-blog
   tag: latest
 host: danielhnyk.cz
