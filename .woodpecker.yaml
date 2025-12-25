@@ -1,3 +1,7 @@
+when:
+  - event: push
+    branch: main
+
 steps:
   - name: build
     image: woodpeckerci/plugin-docker-buildx
@@ -18,5 +22,3 @@ steps:
       - helm upgrade --install blog ./chart
           --namespace apps
           --set image=ghcr.io/hnykda/danielhnyk-blog:${CI_COMMIT_SHA:0:8}
-    when:
-      branch: main
