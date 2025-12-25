@@ -6,10 +6,13 @@ steps:
   - name: build
     image: woodpeckerci/plugin-docker-buildx
     settings:
-      repo: ghcr.io/hnykda/danielhnyk-blog
-      registry: ghcr.io
-      tag: ${CI_COMMIT_SHA:0:8}
+      repo: localhost:32000/danielhnyk-blog
+      registry: localhost:32000
+      tags:
+        - ${CI_COMMIT_SHA:0:8}
+        - latest
       platforms: linux/amd64
+      insecure: true
 
   - name: deploy
     image: alpine/helm:3.14.0

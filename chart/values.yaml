@@ -1,4 +1,4 @@
 image:
-  repository: ghcr.io/hnykda/danielhnyk-blog
+  repository: localhost:32000/danielhnyk-blog
   tag: latest
-host: blog.hera.danielhnyk.cz
+host: danielhnyk.cz
