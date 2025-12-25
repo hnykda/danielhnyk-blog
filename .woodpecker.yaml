@@ -4,9 +4,6 @@ steps:
     settings:
       repo: ghcr.io/hnykda/danielhnyk-blog
       registry: ghcr.io
-      username: hnykda
-      password:
-        from_secret: ghcr_token
       tag: ${CI_COMMIT_SHA:0:8}
       platforms: linux/amd64
 
