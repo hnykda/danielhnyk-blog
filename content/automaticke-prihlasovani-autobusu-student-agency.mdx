@@ -1,0 +1,116 @@
+export const metadata = {
+  title: "Automatické přihlašování autobusů Student Agency",
+  slug: "automaticke-prihlasovani-autobusu-student-agency",
+  date: "2015-05-19",
+  tags: [],
+};
+
+Často jezdím autobusy společnosti Student Agency. Notoricky si nestíhám kupovat jízdenky dřív, než pár dní před odjezdem. Nicméně občas se někdo odhlásí a je tak možné získat místo i později.
+
+Napsal jsem si proto jednoduchý skript, který toto řeší za mě. Stačí zadat číslo a heslo kreditové jízdenky, URL adresu spoje, kterým chcete jet, rozpětí od kdy do kdy chcete jet a email, na který vám bude zasláno číslo sedadla, bude-li registrace úspěšná. Funguje s prohlížeči Firefox, Chrome a PhantomJS.
+
+Skript je napsaný v jazyce `Python` a jediná závislost je knihovna `selenium`. Testováno s `Python 3.4` a `selenium 2.45`
+
+Jedná se zatím o nepěkný špagety kód... V budoucnu ho samozřejmě upravím, ale nevím, kdy se k tomu dostanu. 
+
+Příklad:
+
+```language-bash
+python SAreserv.py -u https://jizdenky.studentagency.cz/Booking/from/PR/to/KVTE/tarif/CZECH_STUDENT_PASS_26/departure/20150522/retdep/20150520/return/false/ropen/false/credit/false/class/2\?6\#search-results -c 2622334119 -p my_password -f 13:30 -e 16:30 -r my_email@gmail.com
+```
+
+[Zde je možné kód stáhnout](https://copy.com/DQuvUQdrHZEiTWgq):
+
+```language-python
+# Process arguments
+args = parser.parse_args()
+
+def sendni_allert(body, user, passw, fromaddr, recipient):
+    # Odesle email na danou adresu
+    import smtplib
+    server = smtplib.SMTP('smtp.gmail.com:587')
+    server.ehlo()
+    server.starttls()
+    server.login(user,passw)
+    message = "Subject: SA volne misto\n\nJak to vypada:\n {0} ".format(body)
+    server.sendmail(fromaddr, recipient, message)
+    server.quit()
+
+### NASTAVIT PRIHLASOVACI UDAJE DO GMAILU, ZE KTEREHO SE INFO ODESLE ###
+gm_username = "eraschecker"
+gm_password = 'smecpi123'
+gm_fromaddr = 'eraschecker@gmail.com'
+
+from selenium.webdriver import Chrome
+from selenium.common.exceptions import NoSuchElementException
+
+from time import sleep
+from selenium.webdriver import PhantomJS, Firefox, Chrome 
+chsdr = dict(
+            zip(
+            ("chrome", "firefox", "phantomjs"), 
+            (Chrome, Firefox, PhantomJS)
+                )
+            )
+
+
+dr =  chsdr[args.driver]()
+dr.get(args.login_url)
+
+def login():
+    number = dr.find_element_by_css_selector('#login_credit')
+    number.send_keys(args.credit_numb)
+
+    passwd = dr.find_element_by_css_selector('#pwd_credit')
+    passwd.send_keys(args.passwd)
+
+    dr.find_element_by_css_selector('#id1c').click()
+
+login()
+dr.get(args.url)
+sleep(2)
+casob = [i.text.split("\n")[0] for i  in dr.find_elements_by_css_selector(
+            'div[class~="routeSummary"]')]
+fwn = casob.index(args.first_wanted)
+lwn = casob.index(args.end_wanted)
+dr.find_element_by_css_selector(
+        "div[class='nav_button'] > button[class='button']").click()
+
+def book(elem):
+    elem.find_element_by_class_name("col_price").click()
+    sleep(2)
+    dr.find_element_by_css_selector(
+        "div[class='nav_button'] > button[class='button']").click()
+    sleep(1)
+    seat = dr.find_element_by_css_selector("div[class='seat selected']").text
+    print(seat)
+    try:
+        dr.find_element_by_css_selector("button[name='buttonContainer:createAndPayTicketButton']").click()
+    except NoSuchElementException:
+        dr.find_element_by_css_selector("button[name='buttonContainer:createTicketButton']").click()
+
+    return(seat)
+
+
+cont = True
+while cont:
+    busy = dr.find_elements_by_css_selector(
+            'div[class~="routeSummary"]')[fwn:lwn+1]
+
+    busyOccup = [int(i.text.split("\n")[3]) for i  in busy]
+    print(busyOccup)
+    for ix, (seats, elem) in enumerate(zip(busyOccup, busy)):
+        if seats == 0:
+            pass 
+        elif seats != 0:
+            cont = False # end while
+            misto = book(elem)
+            #print("Zarez: ", misto)
+            sendni_allert("Zarezervovane misto: {0}".format(misto), 
+                          gm_username, 
+                          gm_password, gm_fromaddr, args.recipient)
+            break
+
+    sleep(args.sleep_time)
+    dr.refresh()
+```

@@ -1,0 +1,19 @@
+export const metadata = {
+  title: "Pycharm Error \"fatal: Could not read from remote repository.\"",
+  slug: "pycharm-error-fatal-could-not-read-remote-repository",
+  date: "2015-07-07",
+  tags: ["IT"],
+};
+
+I just encountered very unpleasant error with Pycharm when trying to push or pull to my private repository:
+
+    Git Pull Failed: fatal: Could not read from remote repository.
+
+The problem and solution is as follows. I use SSH key for login into GitHub and Pycharm needs to know about it. Unfortunately, Pycharm supposes that your key to GitHub is exactly in `~/.ssh/id_rsa` and `~/.ssh/id_rsa.pub`. So solution is to create symlinks:
+
+    cd ~/.ssh
+    ln -s github_key_name id_rsa
+    ln -s github_key_name.pub id_rsa.pub
+
+Everything should work now.
+

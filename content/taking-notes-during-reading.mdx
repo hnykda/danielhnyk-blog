@@ -1,0 +1,45 @@
+export const metadata = {
+  title: "Taking notes during reading",
+  slug: "taking-notes-during-reading",
+  date: "2014-08-10",
+  tags: [],
+};
+
+*Because* of [How to read a book](http://pne.people.si.umich.edu/PDF/howtoread.pdf) I decided to make notes and marks about everything I'm going to read (speaking about *educative* literature).
+
+It's also because I unfortunately realized that I **do remember nothing** from my previous reading I'd need to.
+
+In *How to read a book* there is very brief information about that - some software and techniques.
+
+Unfortunately for me I haven't found any usable solution. Why? The best format for making notes is still a paper book. But since a lot of material I read is usually in electronic form and printing doesn't seems as a suitable and economic variant, I had to find another solution.
+
+I have also books (books is kind of """zavadejici""" - I'm using this term as all reading - articles, blog posts...) in several different formats - EPUB, MOBI, PDF, HTML (fetched from websites) etc. To handle these I use [Calibre](http://calibre-ebook.com/). Of course, some of the books I luckily have in paper form, but it is minority.
+
+I also use several different devices for reading: Amazon Kindle 4 with Duokan firmware, laptop and in necessity also my smartphone Samsung Galaxy SII.
+
+It's currently **impossible** (of course, as far I know) to manage all books in various formats in sync with all higlights, comments and notes.
+
+To solve format dilema I decided to convert all files to PDF, since it's currently the most *keep same* format I know (besides *DJVU*) and there are a lot of utilities which can work with PDF for notes and can convert to it.
+
+Dead end
+========
+
+I search for several free note taking software for Linux where I mainly looked for possibility to export PDF with notes. I'd found two choices: [KDE Okular](http://okular.kde.org/) and [Xournal](http://xournal.sourceforge.net/). There is big difference between these two - since Okular is whole PDF viewer with all it's features, Xournal is simple and stupid (in a good way) note taking software for PDF.
+
+Another difference is the size - if you want to use Okular, you'll need to install all KDE dependencies, what in my case means about 50 packages which *I DONT WANT* (I like KISS). Xournal needs about 3 additional packages...
+
+I've found out that Xournal is really just to much stupid to my needs. Okular is great, but as I said, I don't want 50 other packages in my PC. Besides that, Okular don't know how to export [pop-up annotations](https://forum.kde.org/viewtopic.php?f=251&t=12233) which makes it unusable.
+
+Even if you've found good software for annotating, it wouldn't solve one problem - reference manager. You would still need to use some other reference manager to keep your bibliotheque in *good shape*.
+
+The least bad - Mendeley
+========================
+
+So my choice is [Mendeley](http://www.mendeley.com/dashboard/). It supports only PDF, but as I stated, there isn't other more suitable format for me and this is first compromise I made with Mendeley.
+
+Mendeley is quite good with annotating PDFs and can exports them along PDF (how to export them to other formats [here](http://www.danielhnyk.cz/blog/view/export-pdf-annotations-mendeley-csv-or-txt)). All in all I'm quite satisfied.
+
+I hate one thing about it - every time it is run (or when it sync database) it creates `~/Documents` - I don't use this folder and I hate when SW make what it wants with my delicate folder structure... I solved that by running this through script, which delete this folder when I close it. I also don't like that it isn't really *open source*.
+
+I'm using t for short time, but will update my experiences.
+

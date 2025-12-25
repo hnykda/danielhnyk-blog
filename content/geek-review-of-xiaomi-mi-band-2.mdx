@@ -1,0 +1,52 @@
+export const metadata = {
+  title: "Geek review of Xiaomi Mi Band 2",
+  slug: "geek-review-of-xiaomi-mi-band-2",
+  date: "2016-10-25",
+  tags: ["contribution","selfdev"],
+};
+
+I bought this fitness band about a month ago and I would like to share few things I couldn't find anywhere else. This is fully user-sided review. 
+
+This post won't be as long as it should, because, my server has died before it could do the backup of the original posts, so take this as a second attempt `:-D` . 
+
+# Heart rate monitoring
+So how is it with the HR monitoring? First of all, the official app doesn't support continuous or periodic sampling. You can either press the button on the band for three times to get the current HR (without any logging anywhere - it doesn't store it), or go to the app and see one sample there. TERRIBLE waste of potential!
+
+So buy and download [Mi Band & Tools](https://play.google.com/store/apps/details?id=cz.zdenekhorak.mibandtools&hl=cs) from here. There you can easily set up all notifications including alarms, change icons, periodic notifications and so on. But better, you can set up HR sampling from real-time data to arbitrary period of your choice. I have it for every minute. It can even measure twice for increasing the accuracy. And it logs the results into clean and simple CSV with HR rate and date. What else could I want?!
+
+So we are able to get out the measurements. But shouldn't I first ask if they are reliable? They are...
+
+...not at all. Make the long story short, the measurements are NOT accurate, but they are precise. Anything above 100 BPM my band simple ignores. Sometimes it is possible to catch some higher frequencies, but generally it does not. It more often stop measure than actually catch high frequency HR. And I have never seen bigger HR than 140. And when I went running, my Polar showed 170 BPM (and that is what I really had according to my manual measurement). 
+
+But at least there is some link between my HR and the measurement results. Below you can see the chart for last Tuesday. Around &lt;50 BPM when I was asleep, slowly raising with peak on 10am because that was when I was rushing to school, then sitting two hours on a lecture and then the same around 15:30. I think I need more data to be able to say if this is valuable or not. Currently, I can't say. My ultimate goal is to be able to predict my diseases (e.g. cold) from the BPM.
+
+![heart rate chart for one day](/images/external/Chart-2016-10-22-10-00-17-aHR0cHM6.png)
+
+
+# Battery life
+I sampled a battery percentage for several times over few days. Overall I was impressed. The chart below shows how big battery drain you are going to get if you have steps ON, few notifications with alarms (say up to 10 in a day) and HR monitoring every minute with double-measurement. With this settings, you are somewhere about 14% of battery drain day. That is IMHO a great result! 
+
+![battery life chart](/images/external/graf-aHR0cHM6.png)
+
+# Steps
+This is what it should do best. And it actually does. Here are my tests. 
+
+I counted 300 steps two times (and I could do some errors while doing that - do you know how hard is to count to that number :-D ). The first time, Mi Band measured **296** (!) steps and the second time **305** (!). The next time I went 150 steps (including going up stairs) and it counted **154** steps. These are all great results. Of course it would be great to have more measurements, but no more than 5% error rate suggests good performance. 
+
+# Exporting data
+This is the weakest point and as a data scientist this bothers me most. Ideally, I want to have clear API to get summaries and the raw data. But Xiaomi ignores what their customers wants (just take a look at their forum)... And what are the data for if you can't analyse them or get out from the device or the app?!
+
+If you are using only official app, **there is not way you can export the data and analyse those except on few charts in the app**. So what are the other options?
+
+Tools & Mi Band app collects HR and is able to export it to clean CSV on one click. Done.
+
+Than there are sleep data. You **currently can't export raw (~sensor data) sleep data**. That is really pity. All you can get is the daily summary (with when you went to bad, how long you slept, how many deep sleep minutes). 
+
+With the steps it's similar. You actually can get the raw data, but they doesn't make sense and the algorithm isn't known. Again, you can get daily summary as it is with sleep data...
+
+How to actually get at least those? Well, some people reverse-engineered the official app, which basically means getting data from several SQLite databases. There is a whole thread about getting the data from Mi Bands on [XDA](http://forum.xda-developers.com/general/accessories/xiaomi-mi-band-data-extraction-t3019156). It started with the first version and now there is some progress on Mi Band 2 ([as this one of me](http://forum.xda-developers.com/showpost.php?p=69013160&postcount=263)). If you don't know what SQLite database or XDA is, you can probably forget about getting your data out...
+
+What these scripts outputs can be seen in this [example of exported data](https://www.dropbox.com/s/r9f8cv8qe2vq91t/miband_xda_export_example_csv.zip?dl=0).
+
+# Conclusion
+I think that it worth those $40 it costs. There are these drawbacks which I hope I will eliminate in the future by buying something more expensive than this.

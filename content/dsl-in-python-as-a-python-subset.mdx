@@ -1,0 +1,173 @@
+export const metadata = {
+  title: "DSL in Python as a Python subset",
+  slug: "dsl-in-python-as-a-python-subset",
+  date: "2019-05-05",
+  tags: ["python","IT","contribution"],
+};
+
+I had a client who used a terrible solution for their data manipulation. All the _transforming script_ were written in a DSL of some weird proprietary software, which didn't scale, cost thousands of bucks per licence, was slow, ignored errors, zero examples...
+
+One example would be to create a Python execution engine for the existing DSL codebase. You would probably do this by writing your custom parser (e.g. using `pyparsing` or `lark`) and then define equivalent operations when you encounter a specific DSL statement. It works, but there is something better. It's really hard to deal with your own DSL. Why not transpile into an actual Python to take advantage of everything the language ecosystem has, such as using all the IDEs, examples, all the language structures, linters, checkers etc.?!
+
+Therefore, we decided to transpile it to Python. We used `pyparsing` library to transpile the old DSL into an AST and then wrote this AST into something like this:
+
+```python
+pipeline = [
+  Assign(condition=["a", ">", 3], target="c", value="Hello!"),
+  Delete(target="d"),
+  ...
+]
+```
+as you can see, it's actually a valid Python. So we limited the final DSL to a subset of Python to make our life easier. It's much superior to rolling out your own DSLs for multiple reasons, some of them already mentioned. You can use everything from the language ecosystem:
+
+* IDEs support
+* debuggers
+* linters, checkers
+* import system - you can break your DSL into multiple files which are just easily importable
+* REPL - you can experiment with the DSL in Python shell or Jupyter notebook
+* optionally you can use EVERYTHING from Python ecosystem (you can sneak in your own function which can do whatever)
+
+Then we executed these somewhat abstract transformation specifications on top of some data structure, e.g. a `dict`. So if you imagined that you would have e.g. `{'a': 2, 'b': 'something', 'd': 'foo'}`, the code above would convert this to `{'a': 2, 'b': 'something', 'c': 'Hello!'}`. Pretty straightforward. 
+
+# How to do it?
+This is not a full blown solution but gives you an idea of how it works. 
+
+## Some metaprogramming
+Let's start with a class which will represent our single command and then a factory to save some typing. 
+
+```python
+import inspect
+from typing import Callable, List, Union, Any
+
+Variable = str
+Value = Union[str, int, float]
+Condition = List[Value]
+DataElement = Dict[Any, Any]
+
+
+class BaseCommand:
+    args = None
+    kwargs = None
+
+    def __init__(self):
+        self.name = self.__class__.__name__
+
+    def __call__(self, d: DataElement) -> DataElement:
+        raise NotImplementedError('Every command must implement __call__')
+
+    def __str__(self) -> str:
+        args_s = ""
+        if self.args:
+            args_s = ''.join([f'{x}, ' for x in self.args])
+
+        if self.kwargs:
+            kwargs_s = ''.join([f'{x}={y}, ' for x, y in self.kwargs.items()])
+            return f'{self.name}({args_s}{kwargs_s[:-2]})'
+        else:
+            return f'{self.name}({args_s[:-2]})'
+
+    def __repr__(self) -> str:
+        return self.__str__()
+
+def command_factory(name, op: Callable[..., DataElement]):
+    def __init__(self, *args, **kwargs):
+        self.op = op
+        self.args = args
+        self.kwargs = kwargs
+
+        BaseCommand.__init__(self)
+
+    def __call__(self, d: DataElement) -> DataElement:
+        return self.op(d, *self.args, **self.kwargs)
+
+    doc = 'Executes: {}{}\n\n{}'.format(
+        op.__name__, inspect.signature(op), op.__doc__
+    )
+
+    payload = {
+        "__init__": __init__,
+        '__call__': __call__,
+        '__doc__': doc,
+        'op': op,
+    }
+    new_class = type(name, (BaseCommand,), payload)
+    return new_class
+```
+
+and now we can _register_ a command by passing a `name` and a `function` to this `command_factory`. Why not call the functions directly? Well, this decouples definition from execution, so we don't need e.g. data to load everything, so we can do various analysis on top of this. So the commands are represented as classes with a `__call__` method, which calls an underlying `function` passed to the constructor. With the code above, we are able to add new commands really easily, just by defining a function and then using the factory. Here is an example:
+
+```python
+def assign(...): ...
+def delete(...): ...
+
+Assign = command_factory('Assign', assign)
+Delete = command_factory('Delete', delete)
+```
+
+### Defining the functions
+Ok, now let's define actually some useful stuff. `assign` and `delete` could do e.g. just this:
+
+```python
+import operator
+
+# notice we use only three comparators to keep this concise, but
+# you can easily add `<=` or `>=`
+operator_mapping = {
+  '<': 'lt',
+  '>': 'gt',
+  '==': 'eq',
+}
+
+def assign(d: DataElement, condition: Condition, target: Variable, value: Value) -> DataElement:
+  var, _op, comp_val = condition
+  op_func = getattr(operator, operator_mapping[_op])
+  if op_func(d[var], comp_val):
+    d[target] = value
+  return d
+
+def delete(d: DataElement, target: Variable) -> DataElement:
+  del d[target]
+  return d
+```
+In both functions, we obviously need that `d: DataElement` which is the structure we wanna operate on. That's the only argument needed, the rest is totally optional. In my real world use case, this is as full-fledged `pandas.DataFrame` with all the bell and whistles.
+
+If you didn't notice - this means that you can use an _arbitrary python function_. You just got Turing complete (which actually may not be what you want! :-D ).
+
+
+## Executor
+So we have our commands defined, now we want to execute them on top of the data structure. Well, the commands are just classes which can be called (so technically, in Python world, they are functions, which are just classes with a `__call__` defined), so we can instantiate their instances and use them. Did I mention that we can just use REPL? I DID! The [gist with the code is here](https://gist.github.com/hnykda/852e3821da7409e3a1d4f4730b751f6d), just download as `dsl.py` and then in the same directory:
+
+```bash
+$ python
+Python 3.7.0 (default, Jun 28 2018, 13:15:42) 
+[GCC 7.2.0] :: Anaconda, Inc. on linux
+Type "help", "copyright", "credits" or "license" for more information.
+>>> from dsl import Assign, Delete
+>>> data = {'a': 3, 'b': 'something', 'd': 'foo'}
+>>> assign_1 = Assign(condition=["a", ">", 3], target="c", value="Hello!")
+>>> assign_1(data)  # nothing happens as data['a'] is not bigger than 3 (it's equal)
+{'a': 3, 'b': 'something', 'd': 'foo'}
+>>> data_2 = {'a': 4, 'b': 'something', 'd': 'foo'}
+>>> assign_1(data_2)  # and we got our "c": "Hello!" there!
+{'a': 4, 'b': 'something', 'd': 'foo', 'c': 'Hello!'}
+>>> delete = Delete(target='d') 
+>>> delete(data_2)  # and deleted the `d` key
+{'a': 4, 'b': 'something', 'c': 'Hello!'}
+```
+
+Awesome! 
+
+### Executing multiple 
+Now you may want to execute multiple commands, how to do it? Easy:
+
+```bash
+>>> res = {'a': 4, 'b': 'something', 'd': 'foo'}
+>>> for cmd in pipeline:
+...     res = cmd(res)
+>>> res
+{'a': 4, 'b': 'something', 'c': 'Hello!'}
+```
+in our use-case, we actually wrapped this functionality into `Pipeline` class with some metadata, but that's not necessary for a simple case like this. In our case, the pipelines can be nested, executed on the `DataElement` type, loaded from different files etc.
+
+## Conclusion
+We have had this in production over the last year and I am super happy we decided to do it this way. Python (or its subset you design) is readable and powerful enough to use it as a DSL for non-programmers. 

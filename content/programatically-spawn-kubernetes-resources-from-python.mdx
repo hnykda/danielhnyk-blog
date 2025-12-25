@@ -1,0 +1,64 @@
+export const metadata = {
+  title: "Programatically spawn kubernetes resources from Python",
+  slug: "programatically-spawn-kubernetes-resources-from-python",
+  date: "2018-11-14",
+  tags: ["IT","contribution"],
+};
+
+I stumbled upon a seemingly trivial task:
+
+> How to spawn a `kubernetes` resource from within a pod?
+
+All examples in the [python kubernetes-client examples dir](https://github.com/kubernetes-client/python/tree/master/examples) are only "read-only" examples. Nevertheless, I found that this is the most [relevant one](https://github.com/charly37/python/blob/master/examples/remote_cluster.py). How to get the `API_KEY`? Well, [this SO](https://stackoverflow.com/a/48377444/2319172) thread help, and then the [following answer](https://stackoverflow.com/a/48305948/2319172) as well - I only had to grant admin role binding instead of just view. Overall, to create it all was:
+
+```yaml
+# sa.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: some-nice-name
+```
+followed by:
+
+```
+# creates the service account
+$ kubectl create -f sa.yaml
+
+# now grant the permissions
+$ kubectl create clusterrolebinding some-nice-name-cluster-role --clusterrole=cluster-admin --serviceaccount=default:some-nice-name
+```
+then to find out the `API_KEY`:
+```
+kubectl describe secrets $(kubectl get secrets | grep pyxecutor | cut -f1 -d ' ')| grep "^token"|  cut -d':' -f 2
+```
+
+
+and then I could do:
+
+```
+# job.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: hey-world
+spec:
+  template:
+    spec:
+      containers:
+      - name: hey-world
+        image: alpine
+        command: ["echo",  "hello"]
+```
+
+and then this works:
+```python
+from kubernetes import client, utils
+aToken = {{API_KEY_FROM_ABOVE}}
+aConfiguration = client.Configuration()
+aConfiguration.host = "https://{{URL_ADDRESS_of_your_cluster}}"
+aConfiguration.verify_ssl = False
+aConfiguration.api_key = {"authorization": "Bearer " + aToken}
+aApiClient = client.ApiClient(aConfiguration)
+k8s_api = utils.create_from_yaml(k8s_client, "job.yaml")
+```
+and tadaaa we have a deployment.

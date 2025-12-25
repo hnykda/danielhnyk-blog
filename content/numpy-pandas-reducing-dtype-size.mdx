@@ -1,0 +1,43 @@
+export const metadata = {
+  title: "Reducing dtype size of a Numpy/Pandas array",
+  slug: "numpy-pandas-reducing-dtype-size",
+  date: "2016-08-10",
+  tags: ["python","data-science","contribution"],
+};
+
+I run into memory problem when processing very large dataframe. 
+
+The _problem_ is that Pandas use `float64` and `int64` numpy dtypes by default even in cases when it is totally unnecessary (you have e.g. only binary values). Furthermore, it is not even possible to change this default behaviour.
+
+Hence, I wrote a function which finds the smallest possible dtype for a specific array. 
+
+```python
+import numpy as np
+import pandas as pd
+def safely_reduce_dtype(ser):  # pandas.Series or numpy.array
+    orig_dtype = "".join([x for x in ser.dtype.name if x.isalpha()]) # float/int
+    mx = 1
+    for val in ser.values:
+        new_itemsize = np.min_scalar_type(val).itemsize
+        if mx < new_itemsize:
+            mx = new_itemsize
+    new_dtype = orig_dtype + str(mx * 8)
+    return new_dtype # or converts the pandas.Series by ser.astype(new_dtype)
+```
+
+So, e.g.:
+```python
+>>> import pandas
+>>> serie = pd.Series([1,0,1,0], dtype='int32')
+>>> safely_reduce_dtype(serie)
+dtype('int8')
+
+>>> float_serie = pd.Series([1,0,1,0])
+>>> safely_reduce_dtype(float_serie)
+dtype('float8')  # from float64
+```
+
+Using this you can reduce the size of your dataframe significantly up to factor 4. 
+
+## Update:
+There is `pd.to_numeric(series, downcast='float')` in `Pandas 0.19`. The above was written before it was out and can be used in old versions.

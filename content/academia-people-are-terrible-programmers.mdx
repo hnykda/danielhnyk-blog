@@ -1,0 +1,33 @@
+export const metadata = {
+  title: "Academia people are terrible programmers",
+  slug: "academia-people-are-terrible-programmers",
+  date: "2017-11-23",
+  tags: ["programming","school"],
+};
+
+Not sure if it's just me ([apparently not](https://academia.stackexchange.com/questions/17781/why-do-many-talented-scientists-write-horrible-software)), but I am really starting to believe that most of academia programmers (or rather "people who happen to write some code") are really shitty programmers. Mostly in comparison to how bright minds they usually are in their area. The only field where it's so so (and it is not "programming") is deep learning and machine learning. 
+
+It's not about the fact that they don't know the languages very well, but the way how they e.g. structure their code is so bad that it must go against their own goals. 
+
+Since I am doing some interview with people who'd like to join my projects, I am quite confident that if someone came to me with that kind of code I see in 90% of academia papers, I wouldn't even bother to continue to the next stage of interview process. The fact that the person doesn't know how to code is not *the problem*. With all resources we have today - guides, courses, books (and papers) about how to code - the most important lessons (which would fix most of the worst things) could be learn during an afternoon - a negligible time compared to get your article published. The problem is that the person didn't bother to actually check if what he does is good or couldn't be improved (a common case for scientists). That he didn't realized the way he does X is so error prone and stupid that there is very probably a better way (e.g. versioning). The skill I lack in these people.
+
+As one reader of this [reddit thread](https://www.reddit.com/r/cscareerquestions/comments/2eyvf8/why_are_there_so_many_terrible_programmers/) put it:
+> I have met many a CS degree holding person, who can logically think through a problem, spout as much CS knowledge as I wanted to pull from them, but who couldn't code their way out of a paper bag.
+
+From my experience, in different fields than CompSci this is even worse. 
+
+
+# Hate list
+
+1. Use C/C++ because **it's fast**, but write code so terribly slow (like using `new` operator for things you know in advance, heavy IO to save intermediate results, ...) that you could write an additional paper while waiting fot he code to finish 
+2. Using Matlab. That's just a flaw itself. If I wanna reuse it, I have to buy a software costing few thousands bucks, while there is basically no advantage compared to open source alternatives? What about headless deployment on AWS?
+3. Doesn't publishing code at all. 
+ > Because, you know, leave that to dirty programmers, we have already written it in `\beginAlgorithm` namespace in Latex (or worse, in Word) in pseudocode, which is trivial to convert into any language in the world, right?!
+   
+4. application structure is terrible - they don't break functionality into smaller pieces. If they do, it's usually only for tiny parts and then they have few mega nested `for` loops to do everything.
+5. no testing whatsoever. I haven't seen a single academia paper software with tests (nor unitests). If you are lucky, you get a *demo*, which usually requires some tweaks like changing hardcoded absolute paths such as `C:\Users\myGrandmasOldLaptop\Documents\potato\img I wanted to keep here version 3.png`
+6. No version control. Well, if you don't count in things like naming your folders with things like `myWork_v3_final_new_v4_ok_now_definitely_final_version_for_Ana_no_for_Bob.zip`
+7. the code is hosted on pages like http://people.myuniversitysite.org/~mx1/publish/XASMDES3.zip , which is effectively deleted as soon as those people change their home university or just redesign their 90s plain HTML site. 
+8. When run, the program has other side-effects than actually produce the obvious result you expect. What does it mean? Just recently I ran a program which poluted my directory with thousands of some intermediate files. The programmer not even tried to clean it after himself.
+
+As one of many consequences, when you want to work on some research topic and you are about to map current state-of-the-art techniques, you have to reimplement them... 

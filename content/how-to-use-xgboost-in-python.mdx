@@ -1,0 +1,98 @@
+export const metadata = {
+  title: "How to use XGBoost in Python",
+  slug: "how-to-use-xgboost-in-python",
+  date: "2016-10-25",
+  tags: ["contribution","data-science","python"],
+};
+
+It has been some time since I discovered Kaggle-winning estimator [XGBoost](http://xgboost.readthedocs.io/en/latest/).
+
+I have successfully used that in several projects and it always performed quite well. If it wasn't the best estimator, usually it was one of the best.
+
+Personally, I like it because it solves several problems:
+
+1. **accepts sparse datasets** - that means no additional steps in cases when it is hard or impossible to solve data imputation (specially with extremely sparse datasets, such as those coming from poll or surveys)
+2. **fast** - written in C++ with focus on efficiency
+4. **Python API and easy installation using `pip`** - all I had to do was `pip install xgboost` (or build it and do the same). I use Python for my data science and machine learning work, so this is important for me.
+3. **scikit-learn interface** - *fit/predict* idea, can be used in all fancy `scikit-learn` routines, such as `RandomizedSearchCV`, cross-validations and so on.
+5. **very versatile** - supports regression as classification problems, has plenty of parameters to adjust its bias/variance or time needed to fit and learn
+
+Disadvantage is its not-so-well [documentation](http://xgboost.readthedocs.io/en/latest/). It has publication of some API and some examples, but they are not very good. E.g. it is not clear what parameter names should be used in Python (to what parameters it corresponds in the _core_ package).
+
+I wasn't able to use XGBoost (at least regressor) on more than about hundreds of thousands of samples. About milion or so it started to be to long to be used for my usage (e.g. days of training time or simple parameter search).
+
+
+# How to use it in Python
+Let's prepare some data first:
+```python
+from sklearn import datasets
+from sklearn.model_selection import train_test_split
+from sklearn.model_selection import cross_val_score
+
+X, y = datasets.make_classification(n_samples=10000, n_features=20,
+                                    n_informative=2, n_redundant=10,
+                                    random_state=42)
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3,
+                                                    random_state=42)
+```
+
+I will present the `scikit-learn` interface. If you are familiar with that one, these lines should be obvious to you:
+
+```python
+from xgboost.sklearn import XGBClassifier
+from xgboost.sklearn import XGBRegressor
+
+xclas = XGBClassifier()  # and for classifier
+xclas.fit(X_train, y_train) 
+xclas.predict(X_test)
+```
+
+and as I said, since it expose `scikit-learn` API, you can use as any other classifier:
+
+```python
+cross_val_score(xclas, X_train, y_train)
+```
+
+# How to use XGBoost with `RandomizedSearchCV`
+Are you still using classic grid search? [Just](http://stats.stackexchange.com/questions/160479/practical-hyperparameter-optimization-random-vs-grid-search) [don't](https://medium.com/rants-on-machine-learning/smarter-parameter-sweeps-or-why-grid-search-is-plain-stupid-c17d97a0e881#.3f28phf36) and use `RandomizedSearchCV` instead. 
+
+Below is an example how to use `scikit-learn`'s `RandomizedSearchCV` with XGBoost with some starting distributions. Of course, you should tweak them to your problem, since some of these are not invariant against the regression loss! 
+
+So, a sane starting point may be this. I use it for a regression problems.
+
+First, prepare the model and paramters:
+
+```python
+from xgboost.sklearn import XGBRegressor
+import scipy.stats as st
+
+one_to_left = st.beta(10, 1)
+from_zero_positive = st.expon(0, 50)
+
+params = {
+    "n_estimators": st.randint(3, 40),
+    "max_depth": st.randint(3, 40),
+    "learning_rate": st.uniform(0.05, 0.4),
+    "colsample_bytree": one_to_left,
+    "subsample": one_to_left,
+    "gamma": st.uniform(0, 10),
+    'reg_alpha': from_zero_positive,
+    "min_child_weight": from_zero_positive,
+}
+
+xgbreg = XGBRegressor(nthreads=-1)
+```
+
+and then just plug it into RS:
+
+```python
+from sklearn.model_selection import RandomizedSearchCV
+
+gs = RandomizedSearchCV(xgbreg, params, n_jobs=1)
+gs.fit(X_train, y_train)
+gs.best_model_
+```
+
+As you can see, I use `nthreads=-1` and `n_jobs=1`. `nthreads` should be IMHO as well called `n_jobs` to follow `sklearn` conventions, but currently it is not. I explicitly mention this here because I usually set Search's `n_jobs=-1`, but here it would mean that XGBoost would run thread for every CPU + RS would create job for every CPU, effectively wasting cores by switching between `N*N` processes instead of just `N`... And in XGBoost I prefer setting `nthreads`, since I believe they have better paralelization than it is in Python (because of GIL ans stuff), but someone should test this...
+
+And that's it! Enjoy!

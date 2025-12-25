@@ -1,0 +1,56 @@
+export const metadata = {
+  title: "Anki error: sqlite3.DatabaseError: database disk image is malformed",
+  slug: "anki-error-sqlite3databaseerror-database-disk-image-malformed",
+  date: "2015-07-25",
+  tags: ["IT","contribution"],
+};
+
+I was getting the following error when trying to open Anki after few weeks of inactivity:
+
+    An error occurred. It may have been caused by a harmless bug, 
+    or your deck may have a problem. 
+    To confirm it's not a problem with your deck, please run Tools > Check Database. 
+    If that doesn't fix the problem, please copy the following
+    into a bug report.
+
+and this was the traceback:
+
+```language-python
+Traceback (most recent call last):
+  File "/usr/share/anki/aqt/progress.py", line 69, in handler
+    func()
+  File "/usr/share/anki/aqt/main.py", line 110, in setupProfile
+    self.loadProfile()
+  File "/usr/share/anki/aqt/main.py", line 234, in loadProfile
+    self.onSync(auto=True)
+  File "/usr/share/anki/aqt/main.py", line 598, in onSync
+    self.loadCollection()
+  File "/usr/share/anki/anki/hooks.py", line 55, in repl
+    old(*args, **kwargs)
+  File "/usr/share/anki/anki/hooks.py", line 55, in repl
+    old(*args, **kwargs)
+  File "/usr/share/anki/aqt/main.py", line 290, in loadCollection
+    self.moveToState("deckBrowser")
+  File "/usr/share/anki/aqt/main.py", line 388, in moveToState
+    getattr(self, "_"+state+"State")(oldState, *args)
+  File "/usr/share/anki/aqt/main.py", line 392, in _deckBrowserState
+    self.deckBrowser.show()
+  File "/usr/share/anki/anki/hooks.py", line 55, in repl
+    old(*args, **kwargs)
+  File "/usr/share/anki/aqt/deckbrowser.py", line 27, in show
+    self._renderPage()
+  File "/usr/share/anki/aqt/deckbrowser.py", line 142, in _renderPage
+    self._dueTree = self.mw.col.sched.deckDueTree()
+  File "/usr/share/anki/anki/sched.py", line 261, in deckDueTree
+    return self._groupChildren(self.deckDueList())
+  File "/usr/share/anki/anki/sched.py", line 219, in deckDueList
+    self.col.decks.recoverOrphans()
+  File "/usr/share/anki/anki/decks.py", line 417, in recoverOrphans
+    ids2str(dids))
+  File "/usr/share/anki/anki/db.py", line 39, in execute
+    res = self._db.execute(sql, a)
+sqlite3.DatabaseError: database disk image is malformed
+```
+
+I unfortunately hadn't found any other solution then to move the default Anki folder (usually `~/Documents/Anki` on windows and `~/Anki` in Linux) to some other place, run Anki again and then let Anki synchronize data from server. If you haven't synchronized data for a while, you could retrieve them from the old backup folder (old\_anki/your\_profile\_name/backups/).
+

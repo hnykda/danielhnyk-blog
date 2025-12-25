@@ -1,0 +1,16 @@
+export const metadata = {
+  title: "Revolut export to Wallet import",
+  slug: "revolut-export-to-wallet-import",
+  date: "2019-02-13",
+  tags: ["IT","productivity"],
+};
+
+I started to use Budgetbakers Wallet app and found out that it does not have integration with Revolut. Fortunately, there is quite clever import functionality in Wallet and reasonably good Revolut export.
+
+[Here is a Python snippet](https://gist.github.com/hnykda/b8912ec1db311d53426520a95d35d112) which converts Revolut export in CSV to Wallet-supported import CSV. The import in Revolut can be done by going to the account summary in the mobile app and clicking on export, selecting "Excel" and then selecting a time range.
+
+The snippet itself needs `pandas` to work, so install it by `pip install pandas`. To run it, use:
+
+```
+python revolut2wallet.py Revolut-EUR-Statement-Jan\ 2019.csv
+```

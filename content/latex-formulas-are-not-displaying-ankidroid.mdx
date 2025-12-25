@@ -1,0 +1,21 @@
+export const metadata = {
+  title: "LaTeX formulas are not displaying on AnkiDroid",
+  slug: "latex-formulas-are-not-displaying-ankidroid",
+  date: "2014-09-25",
+  tags: [],
+};
+
+**UPDATE:** Check [this part](http://ankisrs.net/docs/manual.html#latex-on-web/mobile) of ANKI's documentation - my bad...
+
+**OLD TOPIC** As you can see in my other blog posts or projects, I'm kind of fan of SRS ANKI.
+
+I started to use it also for some mathematical expressions. ANKI supports (thankfully) LaTeX and works great on desktop or web application, but I've found out that they do not work well with AnkiDroid.
+
+My problem was that for not apparent reason some formulas (created by `[$$] formula [/$$]`) weren't displayed and the *question mark image* was displayed instead.
+
+I've found out that it's caused by workaround to replace LaTeX compiler on mobile phones. Formulas are generated on desktop, converted to PNG (or JPG) into media folder (in you base ANKI folder) and then copied to phone.
+
+I really don't know why, but some of the images just aren't updated when you create them or change them. The solution is to make sure that you have checked option in **Preferences** - **Synchronize audio and images too** and then make a one way sync by checking **On next sync, force changes in one direction**. This will upload whole new media directory and then you need to make sync on phone (and of course, download the server version).
+
+This solved the problem for me!
+

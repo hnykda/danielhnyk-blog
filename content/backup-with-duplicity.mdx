@@ -1,0 +1,71 @@
+export const metadata = {
+  title: "Backup, verify, restore with duplicity",
+  slug: "backup-with-duplicity",
+  date: "2016-03-18",
+  tags: ["IT"],
+};
+
+I had decided moving from unmaintained and old `rdiff-backup` to quite new and modern `duplicity`. Another reason beside its relative novelty is e.g. its support for different storage like Dropbox, Webdav or multistorage(!) and also encryption. I will use SSH and rsync to do a backup on a remote host.
+
+# Creating first backup
+I will not go into big details here, since this was done very well on [DigitalOcean](https://www.digitalocean.com/community/tutorials/how-to-use-duplicity-with-gpg-to-securely-automate-backups-on-ubuntu). Just don't forget that from two keys you create with `gpg` you need to use the private key denoted as `sub` in `gpg --list-keys`. This is needed just for the first time you make a backup e.g. by this command:
+```language-bash
+duplicity -v5 --encrypt-key 6B5xxxx2  /dirs/to/backup rsync://endpoint//place/to/do/backup/on/remote/host
+```
+
+## Bugs and caveats
+This part is relevant to this configuration of my stack:
+```language-bash
+$ gpg --version
+
+gpg (GnuPG) 2.1.11
+libgcrypt 1.6.5
+Copyright (C) 2016 Free Software Foundation, Inc.
+License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.
+
+Home: ~/.gnupg
+Supported algorithms:
+Pubkey: RSA, ELG, DSA, ECDH, ECDSA, EDDSA
+Cipher: IDEA, 3DES, CAST5, BLOWFISH, AES, AES192, AES256, TWOFISH,
+        CAMELLIA128, CAMELLIA192, CAMELLIA256
+Hash: SHA1, RIPEMD160, SHA256, SHA384, SHA512, SHA224
+Compression: Uncompressed, ZIP, ZLIB, BZIP2
+```
+and duplicity `duplicity 0.7.06` and latest Arch Linux up to this date. 
+
+The first backup went well, but the second one wasn't possible to do because of some stupid error. I found that this is a bug and can be solved by:
+1. Possibly installing `pinentry` and then adding this to `~/.gnupg/gpg-agent.conf`:
+```language-bash
+pinentry-program /usr/bin/pinentry
+allow-loopback-pinentry
+```
+and this to `~/.gnupg/gpg.conf`:
+```language-bash
+use-agent 
+pinentry-mode loopback 
+```
+then you should be able to do the backup just with passing your passphrase (or setting it as env variable) by this:
+
+```language-bash
+duplicity /dir/to/backup rsync://endpoing//dir/where/to/save/backup
+```
+
+I also recommend to set up lower priority for this process by prepending the command above by `nice -n 10`. 
+
+# Restore files
+First you should try to find the file you are looking for by this command:
+```language-bash
+duplicity list-current-files rsync://endpoint/backups|grep my/file
+```
+and then, if you find it, restore it with:
+```
+duplicity restore --file-to-restore file/to/restore/without/leading/slash rsync://endpoint/backups where/to/save/locally
+```
+
+# How to restore on different device
+When your backup device dies, you also might have lost your private keys and hence you are f****d up because even though you have your backup, you can't de-encrypt it. Hence, you should create a backup of your private key used for backup and save it somewhere securely. This can be done by `gpg --export-private-keys <KEY_ID> > key.cer`. Then you can import it on a machine you want to do a restore operation by `gpg --import key.cer`. That's it.
+
+# Bugs and caveats
+I wanted to use duplicity with [mega](https://mega.co.nz), but it seems there is some bug because of old megapy package. I just hope someone will do a new binding using official MEGA SDK.

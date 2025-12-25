@@ -1,0 +1,180 @@
+export const metadata = {
+  title: "Why I prefer Django over Rails (and beginners should too)",
+  slug: "django-vs-rails-for-beginner",
+  date: "2015-09-30",
+  tags: ["IT","programming","python"],
+};
+
+As you could know from my previous posts I have written several sites in Django framework. 
+
+Currently I have been asked to cooperate on one project written in Ruby On Rails. After few weeks I'd like to do some evaluation and my decision why I would prefer Django over Rails. Specially then for those who are trying to choose between these two.
+
+Please keep in mind that this is my personal opinion and experience and it can of course differ a lot based on your situation.
+
+# Ruby vs. Python
+If there are myriads of articles Rails vs. Django, then there are multimegamyriads articles about Ruby vs. Python. I am not going into much detail, but I would go for Python for mainly two reasons:
+
+* One language to rule them all is true for Python, since Ruby lacks advanced scientific and plotting libraries.
+* Readability of Python is much better! I can't stress this enough. Not that Python has clearer syntax thanks to his indentation, but there is usually one way to do something unless there is reason why there should be more. In Ruby (and Rails just amplify this) you can write one simple thing in millions ways. That might be advantage, but not when you are trying to get into the framework or to understand someone's code. 
+
+# Installation
+This is usually what you do once, but nevertheless it worth mentioning. 
+
+In my Linux distribution to install Django (with modern Python 3) in it's own separate environment (so it's easy to change between them, have separate configuration and versions) I have to do this:
+
+```language-bash
+pacman -S python
+virtuaelnv my_venv
+pip install -e django
+```
+about 20 seconds later everything is installed and there is only one dependency in my environment `django`. When I want to take my project to some other computer, I just need to grab the folder with my_venv and django project and that's it!
+
+What about Rails?
+Well, it took you a while until you find out that there is no such a simple think as a virtualenv for Python. But you can at least have several versions at once for a user and install dependencies under this version. You cannot (at least not easily) have separate environments. 
+
+What to do to install appropriate tools for rails?
+
+```
+pacman -S ruby
+yaourt -S ruby-build rbenv
+```
+And here I am using helper for AUR, otherwise I would have to build and install the last two packages myself. Then you have to edit your `$PATH` and add lines to your `.bashrc`. 
+
+Then it take you a while until you understand what `bundle` and `gem` is. Both are basically used for installation of packages for ruby. `gem` should be installed, so install `bundler`. Then you can use `gem install rails` to install rails. [About 111 sloc of dependencies already](https://github.com/rails/rails/blob/master/Gemfile)! And why the hell **rails require JavaScript Runtime**? All together it took about half an hour.
+
+I think it's clear who is winner here.
+
+# Rails's magic is tragic for learning
+One thing you should know is that Rails do a lot of magic under the hood. And that is horrible for someone who tries to understand concepts of MVC frameworks. 
+
+## Model creation
+Striking example is how model's attributes work. Imagine you have a app with some owner and albums, there is many-to-many relationship and you want let owner to update a picture with him (e.g. avatar):
+
+```language-python
+from django.db import models
+
+class Owner(models.Model):
+    first_name = models.CharField(max_length=50)
+    last_name = models.CharField(max_length=50)
+    file = forms.FileField()
+
+class Item(models.Model):
+    artist = models.ManyToManyField(owner)
+    name = models.CharField(max_length=100)
+    release_date = models.DateField()
+    num_stars = models.IntegerField()
+```
+then you add it to your apps in settings and then do database migration (automatically). 
+
+On rails it's not like this. For creating a model with migration you have to use `rails g model Owner first_name:string last_name:string`. You don't have a lot of option for fields (basically those which are supported by database), so forget about adding some relationships or file uploads. Adding e.g. many-to-many relationship in Rails contains adding it to the model and then creating your own migration with special join table. In django you don't have to do anything at all for this fields - it's abstraction is perfect. 
+
+In Rails you don't have nice view about all Models attributes and their types. You have to go to console and check it from there. 
+
+## Naming conventions
+This bothers me most. Rails use a lot of name conventions, which is OK until Rails starts to change make changes for you which are hard to track. I for example created two models `ExLink` and `ExTag` which are somehow converted to `ex_link` and `ex_tag` for files, but `ex_tags` when you want to do `belongs_to :ex_tags` (that special "s"). While I needed to create many-to-many relationship, I had to create a table where there is special format for that and you must keep an eye on alphabetical order of your models. Furthermore, it doesn't work since the table should be called `Amodel_Bmodel`, so in my case `ex_link_ex_tags` but Rails wanted `ex_link_tags` (why!?). Then you get those special fields like `ex_link_id.ex_tag_id_id` which are *very readable*... In the end I haven't even done it, since I am getting weird SQL error and I was encouraged by our project leader not to use it, since it's quite unreliable. 
+
+## Project organization
+This is even more subjective, but I like Python's way more. You have directory for each app with its own MVC, while in Rails these are for all apps in appropriate directories for controller, views, models and so on. When I work on some app I usually needs all files together (fixing something in routing, then to views, then to model, then templates...). In Rails it takes pretty long until I find those in bigger projects.
+
+And look what you get when you create new projects. First in django:
+```
+project
+├── my_project
+│   ├── __init__.py
+│   ├── settings.py
+│   ├── urls.py
+│   └── wsgi.py
+└── manage.py
+1 directory, 5 files
+```
+and that's it! That is all you need!
+
+And now Rails:
+```
+project
+├── app
+│   ├── assets
+│   │   ├── images
+│   │   ├── javascripts
+│   │   │   └── application.js
+│   │   └── stylesheets
+│   │       └── application.css
+│   ├── controllers
+│   │   ├── application_controller.rb
+│   │   └── concerns
+│   ├── helpers
+│   │   └── application_helper.rb
+│   ├── mailers
+│   ├── models
+│   │   └── concerns
+│   └── views
+│       └── layouts
+│           └── application.html.erb
+├── bin
+│   ├── bundle
+│   ├── rails
+│   ├── rake
+│   ├── setup
+│   └── spring
+├── config
+│   ├── application.rb
+│   ├── boot.rb
+│   ├── database.yml
+│   ├── environment.rb
+│   ├── environments
+│   │   ├── development.rb
+│   │   ├── production.rb
+│   │   └── test.rb
+│   ├── initializers
+│   │   ├── assets.rb
+│   │   ├── backtrace_silencers.rb
+│   │   ├── cookies_serializer.rb
+│   │   ├── filter_parameter_logging.rb
+│   │   ├── inflections.rb
+│   │   ├── mime_types.rb
+│   │   ├── session_store.rb
+│   │   └── wrap_parameters.rb
+│   ├── locales
+│   │   └── en.yml
+│   ├── routes.rb
+│   └── secrets.yml
+├── config.ru
+├── db
+│   └── seeds.rb
+├── Gemfile
+├── Gemfile.lock
+├── lib
+│   ├── assets
+│   └── tasks
+├── log
+├── public
+│   ├── 404.html
+│   ├── 422.html
+│   ├── 500.html
+│   ├── favicon.ico
+│   └── robots.txt
+├── Rakefile
+├── README.rdoc
+├── test
+│   ├── controllers
+│   ├── fixtures
+│   ├── helpers
+│   ├── integration
+│   ├── mailers
+│   ├── models
+│   └── test_helper.rb
+├── tmp
+│   └── cache
+│       └── assets
+└── vendor
+    └── assets
+        ├── javascripts
+        └── stylesheets
+
+38 directories, 40 files
+```
+**WTF?!** OK, I know I am a bit unfair here, since Rails tries to help you a bit e.g. buy explicitly providing some templates, tests, js, css, robots. But all this is really confusing, specially for beginners. Just a quick look at extensions: js, css, rb, rdoc, txt, ico, lock, html.erb, erb, binaries, noname extensions... In Python? Just **py**! Nothing else and eight times less of files.
+
+# Conclusion
+These frustrations had to come out. If I were deciding which framework to choose, I would definitely go for Django. The *magic* just doesn't work for me.
+

@@ -1,0 +1,121 @@
+export const metadata = {
+  title: "Animation of building double-helix structure with Blender and Python",
+  slug: "animation-building-double-helix-structure-blender-and-python",
+  date: "2015-05-31",
+  tags: ["programming"],
+};
+
+This code was created as my final project number 2 on Computer Graphics in 2015 at FJFI CVUT in Prague. It describes creating double helix like structure, adding lights and cameras and creating simple animation.
+
+![image](/images/ghost/2015/09/sroubovice.gif)
+
+```language-python
+import bpy
+from mathutils import *
+from math import pi, sin, cos
+scene = bpy.context.scene
+
+# if exists, delete cube
+try:
+    scene.objects.unlink(scene.objects['Cube'])
+except:
+    pass
+
+
+SC = 0.5 # scaling of objects 
+ROT = pi/18 # how much at each step bone (dumbbell like part) should be rotated against previous
+RAD = 0.3 # dunno
+LEN = 2.7 # the length of the middle bar
+STEP = 0
+N = 30 # how much of bones should be built
+
+def anim_ob(ob):
+    """This cares about animation of object. 
+    It tells when it should hide and reveal."""
+
+    scene.objects.active = ob
+    scene.frame_current =  STEP
+    bpy.context.active_object.hide_render = True
+    bpy.context.active_object.keyframe_insert(  data_path="hide_render", 
+                                                index=-1, 
+                                                frame=STEP)
+    current_frame = STEP + 1
+    scene.frame_current =current_frame
+    bpy.context.active_object.hide_render = False
+    bpy.context.active_object.keyframe_insert(  data_path="hide_render", 
+                                                index=-1, 
+                                                frame=current_frame)
+
+def create_one_on(x0, y0, z0, rot):
+    """Creates one bone."""
+
+    # create, rotate, add color the middle bar
+    bpy.ops.mesh.primitive_cylinder_add(location=(x0,y0,z0))
+    cyl = bpy.context.object
+    cyl.dimensions = (RAD, RAD, LEN)
+    otoc = ROT + rot
+    cyl.rotation_euler = (pi/2, 0, otoc)
+    matc = bpy.data.materials.new("matc")
+    matc.diffuse_color = (0,1,0)
+    cyl.data.materials.append(matc)
+    anim_ob(scene.objects.active)
+
+
+    # find out when it starts and ends, so we know where to place cubes                                            
+    cyl_end = (-sin(otoc) * cyl.dimensions[2]/2,  (cyl.dimensions[2]/2)*cos(otoc), z0)
+    cyl_start = (sin(otoc) * cyl.dimensions[2]/2,  -(cyl.dimensions[2]/2)*cos(otoc), z0)
+
+    # add cubs on given location, rotate and color them
+    itr = zip((cyl_start, cyl_end),
+                ((1,0,0), (0,0,1)))
+    for loc, col in itr:
+        bpy.ops.mesh.primitive_cube_add(location = loc, radius=SC)
+        mat = bpy.data.materials.new("matl" + str(col[0]))
+
+        mat.diffuse_color = col
+        cubl = bpy.context.object
+        cubl.data.materials.append(mat)
+
+        cubl.rotation_euler = (0, 0, ROT + rot)
+
+        # this will make the structure animated
+        anim_ob(scene.objects.active)
+
+rotac = 0 
+cislo_snimku = 0 # number of frame
+for i in range(N):    
+    scene.frame_set(cislo_snimku) 
+    create_one_on(0, 0, i, rotac) # actually create the object
+
+    STEP += 1
+    rotac += ROT
+
+# set 4 suns
+zlamp = N//2
+far = 50
+for lm in [(-1*far,1*far,zlamp), (1*far,1*far,zlamp),
+         (1*far,-1*far,zlamp), (-1*far,-1*far, zlamp)]:
+    lamp_data = bpy.data.lamps.new(name="lampa", type='SUN')
+    lamp_object = bpy.data.objects.new(name="Lampicka", object_data=lamp_data) 
+    scene.objects.link(lamp_object)
+    lamp_object.location = lm
+
+# set camera on the right spot    
+cam = bpy.context.scene.objects['Camera']
+cam.location = (7, 0, N//2)
+cam.rotation_euler = (pi/2, 0, pi/2)
+caml = bpy.data.cameras['Camera']
+caml.lens = 3
+```
+
+Sources
+=======
+
+-   http://www.blender.org/api/blender_python_api_2_73_8/ – complet documentation of API.
+-   http://wiki.blender.org/index.php/Dev:2.5/Py/Scripts/Cookbook – great for quick understanding of API
+-   http://blenderscripting.blogspot.cz/ – a lot of interesting snippets.
+-   http://wiki.theprovingground.org/blender-py-modifiers - by using this you can achieve the same as I using GUI
+-   http://www.blender-models.com/model-downloads/ – free blender models for download
+-   And don't forget single most interesting source: [stackoverflow.com](stackoverflow.com).
+
+

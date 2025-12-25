@@ -1,0 +1,23 @@
+export const metadata = {
+  title: "Pracujete pro zahraniční firmu v EU jako OSVČ? Nezapomeňte na souhrnná hlášení",
+  slug: "pracujete-pro-zahranicni-firmu-v-eu-jako-osvc-nezapomente-na-souhrnna-hlaseni",
+  date: "2017-03-31",
+  tags: ["work","contribution"],
+};
+
+8 měsíců poté, co jsem začal mimo jiné poskytovat poradenství GlobalWebIndex jsem zjistil, že mi fakturací do zahraniční vznikla povinnost podávat každý měsíc tzv. *souhrnná hlášení*. Třeba tohle někomu pomůže a přestane mít problém
+
+S první vydanou fakturou pro zahraniční firmu se musíte zaregistrovat jako tzv. *Identifikovaná osoba* a to *do 15 dní* (já jsem tenhle deadline missnul o asi 200 dní)! Formulář na to je [zde pod matoucím názvem _Přihláška k registraci k dani z přidané hodnoty platná od 1.1.2015_](https://adisepo.mfcr.cz/adistc/adis/idpr_epo/epo2/uvod/vstup_expert.faces) a není těžké ho vyplnit. Důvod toho, proč jste identifikovaná osoba je pravděpodobně [1](http://zakony.kurzy.cz/235-2004-zakon-o-dani-z-pridane-hodnoty-dph/paragraf-6h/) nebo [2](http://zakony.kurzy.cz/235-2004-zakon-o-dani-z-pridane-hodnoty-dph/paragraf-6i/) (máte-li to stejně, jako já).
+
+No a pak musíte podávat pravidelně každý měsíc s fakturou hlášení. Situace se komplikuje, protože máte uvést za kolik jste odvedli služby (a tudíž použít nějaký kurz, který se může lišit od toho, za který skutečně získáte CZK nebo dle kterého budete danit). To je k nalezení [zde pod názvem _Souhrnné hlášení VIES_](https://adisepo.mfcr.cz/adistc/adis/idpr_epo/epo2/uvod/vstup_expert.faces).
+
+# Vyplňovátko v Pythonu
+Pokud jste líní jako já, pak možná oceníte [tento mini-skript](https://gist.github.com/hnykda/6260cd36ab1117c2c71c5eecbd485873), který jsem si vytvořil pro automatické vyplňování. Je to samozřejmě šité mě na míru - například mám v hlášení vždy jen jednu řádku (jednu fakturu) a měním u ní jen částku. 
+
+Postup je jednoduchý:
+
+1. Otevřete souhrnné hlášení a vyplňte ho tak, jak byste ho vyplnili normálně. 
+2. Uložte výsledný XML soubor.
+3. Spusťte skript s parametry `mesic` za který hlásíte a také `castka`. Ty se v XML nahradí a formulář se odešle. Ke spuštění potřebujete Python, knihovnu pro Python `selenium` (instalace `pip install selenium`) a prohlížeč Chrome (nebo jiný webdriver, vizte dokumentace `selenium`). 
+
+Asi je jasné, jak skript funguje, tak si ho můžete upravit dle svého.

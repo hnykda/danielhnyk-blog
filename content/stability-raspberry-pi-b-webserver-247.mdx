@@ -1,0 +1,47 @@
+export const metadata = {
+  title: "Stability of Raspberry Pi B as a webserver 24/7",
+  slug: "stability-raspberry-pi-b-webserver-247",
+  date: "2015-09-13",
+  tags: ["IT","contribution"],
+};
+
+It's going to be one and half year I use my Raspberry Pi as a web server for several of my small projects. These consist mainly of several static pages, few pages written in Django, proxy, SSH tunnelling, sharing and others. I'd like to recapitulate how well it's going in case anyone to use the same configuration. Today you can buy even better model Raspberry Pi 2 and I expect that you can expect even better number than I experience with this model.
+
+Software
+========
+
+Here are necessary services I am running on my RPi:
+
+1.  Archlinux ARM
+2.  nGinx
+3.  Django + Gunicorn (about 2-5 services)
+4.  SSH (for all network work)
+5.  rdiff-backup (I do backups every day at 4AM)
+
+It's just a simple headless server with systemd. Usually it runs about 30 tasks at once and load average is below 2% of CPU and 200/512 MB of RAM reserved.
+
+Journalling and all writing tasks are performed in memory to save the SD Card. This has a disadvantage that you loose your logs after e.g. crash, but in case I need debug, I just changed for a while.
+
+Number of installed packages is 240, but you could easily get to about 200 of them (I have some unused dependencies which I am just lazy to get rid of). I am mentioning that because it's terribly easy to take care of this system when there are so few packages you need to be aware of. I am unfortunately not able to do this on my Archlinux Laptop, where I have about 2000 packages. But on RPi it's not a problem.
+
+Uptime and updates
+==================
+
+My maximum uptime is around 3 months (95 days), when RPi responded very sporadically. Simple restart solved this issue. But I usually get about one or two months without problem and then I restart it for applying all kernel updates. Restart takes about 15 seconds, so it's not a big deal at all...
+
+I do system-wide updates almost every two weeks and I haven't experienced any problems so far. I do not choose what to update and what not, just `pacman -Syu`, check what's new and confirm. Archlinux is just stable. Of course, I do not update Python packages from virtualenvs with django - those I update about every few months.
+
+Problems
+========
+
+First of all, surfing websites is quite fast and without noticeable problem. But editing websites based on Django is quite slow (about few seconds per request). Personally, I don't have a problem with that, but someone can be annoyed by this fact. Raspberry Pi 2 would very probably solve this problem.
+
+I also had to replace SD card and USB power supply. The card was some old one I had from my Camera and power supply looked like the cheapest toy you can buy in Vietnamese shops. I bought it with my RPi from second hand, so I can't tell you how much it costs. Anyway, I had to replace both for about 15 USD (high quality SD card and power supply). It is running about a year with these new equipments without problem.
+
+Those were the biggest problems I've experienced so far :) .
+
+Summary
+=======
+
+As you can see, RPi is absolutely suitable as a web server and is able to easily run 24/7 for quite long time.
+

@@ -1,0 +1,53 @@
+export const metadata = {
+  title: "Change default folder for ANKI (space repetition)",
+  slug: "change-default-folder-anki-space-repetition",
+  date: "2014-07-14",
+  tags: [],
+};
+
+As you can see in my [Beeminder](http://www.beeminder.com) project I've started using ANKI space repetition software. After installing it I found out that ANKI default folder is inside my home directory which I try to keep as clean as possible with KISS philosophy in mind.
+
+To my surprise I hadn't found easy solution to change it, so I had to look to the source and found where the settings is.
+
+# Best solution
+As **kos** mentioned in discussion, there is an easier solution than the one you can find down in this post - your can run Anki with `-b` parametr as this: `anki -b /path/to/anki/folder`.
+
+I created `/usr/bin/local/anki` and inserted this::
+
+     #!/usr/bin/bash
+     /usr/bin/anki -b /path/to/folder/with/Anki
+
+ Now it's necessary to assure that when you call command `anki`, it will execute the one in the `/usr/bin/local/anki` and not the one in `/usr/bin/anki`. You need to have `/usr/local/bin` in front of `/usr/bin` in you `$PATH` variable. To check this, you can type `echo $PATH` in terminal. My is e.g.:
+
+     /usr/local/bin:/usr/bin:/usr/local/texlive/2012/bin/x86_64-linux:/home/USER/prac/scripts
+
+ if you need help to change it, you can take a look on [WikiHow](http://www.wikihow.com/Change-the-Path-Variable-in-Linux).
+
+Then just add executable permissions and voilà :) .
+
+## Original solution (use it only if above doesn't work)
+
+1.  Go to the folder where ANKI is installed, in my case:
+
+        /usr/share/anki
+
+2.  Edit file in `aqt` folder called `profiles.py`, you have to find category **Helpers** and edit appropriate line (it depends which OS you use: Win, Mac, Linux..) you wish:
+
+        def _defaultBase(self):
+            if isWin:
+                if False: #qtmajor >= 5:
+                    loc = QStandardPaths.writeableLocation(QStandardPaths.DocumentsLocation)
+                else:
+                    loc = QDesktopServices.storageLocation(QDesktopServices.DocumentsLocation)
+                return os.path.join(loc, "Anki")
+            elif isMac:
+                return os.path.expanduser("~/Documents/Anki")
+            else:
+                return os.path.expanduser("~/Anki")
+
+e.g I edited last line to this:
+
+    return os.path.expanduser("~/edu/Anki")
+
+to change my default folder to `~/edu/Anki`.
+

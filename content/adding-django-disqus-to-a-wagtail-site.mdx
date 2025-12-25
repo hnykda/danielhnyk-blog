@@ -1,0 +1,31 @@
+export const metadata = {
+  title: "Adding django-disqus to a wagtail site",
+  slug: "adding-django-disqus-to-a-wagtail-site",
+  date: "2017-04-17",
+  tags: ["IT","programming","python"],
+};
+
+I wanted to add a Disqus discussion for our blog on [efektivni-altruismus.cz](http://efektivni-altruismus.cz) and it wasn't that straightforward as I thought. 
+
+I decided to use `django-disqus` plugin. I installed it according to documentation, which is easy (download, add `django-disqus` and `django.contrib.sites` to `INSTALLED_APPS`, add `API_KEY` obtained from Disqus and short name).
+
+After putting it to production everything worked great. But a day later newly created users couldn't log in. They just got Error 500. I found out in logs that it has something to do with `Sites` framework - that the requested site object doesn't exists. 
+
+The problem is because of the fact that `wagtail` uses different `Sites` framework than official django's which is needed for `django-disqus`.
+
+Hence, I had to basically duplicate our existing sites from wagtail sites modules to Django's. This is of course workaround and not a proper solution...
+
+In `python manage.py shell`:
+```language-python
+from django.contrib.sites.models import Site as djangoSite
+from django.apps import apps
+Site = apps.get_model('wagtailcore.Site')
+Site.objects.all()
+#<QuerySet [<Site: Oficiální stránky Spolku pro efektivní altruismus [default]>, <Site: Summer School AI>]>
+[(x.id, x.hostname) for x in Site.objects.all()]
+# [(2, 'efektivni-altruismus.cz'), (4, 'test.efektivni-altruismus.cz')]
+djangoSite.objects.create(pk=2, domain='efektivni-altruismus.cz')
+djangoSite.objects.create(pk=4, domain='test.efektivni-altruismus.cz')
+```
+
+And that's it!

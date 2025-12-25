@@ -1,0 +1,36 @@
+export const metadata = {
+  title: "Add dictionaries to Duokan 2014 (Kindle)",
+  slug: "add-dictionaries-duokan-2014",
+  date: "2014-07-17",
+  tags: [],
+};
+
+I'm new and happy user of Duokan alternative firmware for Kindle (Kindle 4 Black edition, sometimes referred as Kindle 5).
+
+I wanted to add some new dictionaries, mainly `English-English` (lexical) and also `Czech-English`. All guides I'd found were outdated or didn't worked for me, so here is short summary. This should be universal process for any other dictionary.
+
+Download dictionaries
+=====================
+
+You need three files per one dictionary: `.idx`, `.dict` and `.ifo`.
+
+To download dictionaries go in this horrible [site](http://abloz.com/huzheng/stardict-dic/) (someone should take care of it) and click to appropriate links, where you can find lists of dictionaries. If you are looking just for dictionary `"some language" <-> english`, go to [dictd-www.freedict.de](http://abloz.com/huzheng/stardict-dic/freedict.de/). For lexical-type (`English-English`) go to [dictd-www.dict.org](http://abloz.com/huzheng/stardict-dic/dict.org/).
+
+I choosed [WordNet](http://abloz.com/huzheng/stardict-dic/dict.org/stardict-dictd_www.dict.org_wn-2.4.2.tar.bz2) dictionary as Englsh-English (lexical) and [English-Czech](http://abloz.com/huzheng/stardict-dic/freedict.de/stardict-freedict-eng-cze-2.4.2.tar.bz2).
+
+Installing dictionary
+=====================
+
+Now download appropriate dictionary and extract it. On Linux you can use this command: `tar -xjvf <dictionary>.tar.bz2`. On windows use `WinRar` or `7-zip`.
+
+Go inside extracted directory and you will find 3 files there. You need choose the one which ends with `.dz` and again extract it. It's zip format, so use `zip` or again `WinRar` or similar tool.
+
+Now we have our three files. We will copy them to your Duokan system. Connect your kindle and paste these three files inside `DK_System/xKindle/res/dict/`.
+
+That's all. I hope it helped you. If you have any problems, feel free to ask.
+
+Caution
+-------
+
+I found bug in Duokan 2014 (17. July) firmware on non-touch models of Kindle. You can't switch between dictionaries since you'd need touch the screen for it. Let me know If I'm wrong.
+

@@ -1,0 +1,180 @@
+export const metadata = {
+  title: "Simple socket server-client application in Python 3",
+  slug: "simple-server-client-aplication-python-3",
+  date: "2015-07-06",
+  tags: ["python","programming"],
+};
+
+In this tutorial I am going to give another example of simple socket server. This is very handy when you need to have running daemon on background.
+
+My scenario was as follows. Initialize the master server process which will wait for client's connection. Wait for him to send some input. With this input, do some work, process it and then return the result to the client. All this without needing reinitializing the whole server process (because starting it take very long time). The server process should be able to accept several connections at once - it should start a separate thread for each client.
+
+Our server and client will communicate on `localhost`, hence `127.0.0.1` and port `12345`. But of course, you could choose your own. In function `start_server` we initialize the socket and prepare server for accepting several clients at once (otherwise the processes would need to wait until the previous client ends the connection). It is done by calling `Thread` with the function `client_thread`. In this function we call `do_some_stuffs_with_input` which can be any function you wish.
+
+The code for server is below.
+
+```language-python
+# server.py
+
+def do_some_stuffs_with_input(input_string):
+    """
+    This is where all the processing happens.
+
+    Let's just read the string backwards
+    """
+
+    print("Processing that nasty input!")
+    return input_string[::-1]
+
+def client_thread(conn, ip, port, MAX_BUFFER_SIZE = 4096):
+
+    # the input is in bytes, so decode it
+    input_from_client_bytes = conn.recv(MAX_BUFFER_SIZE)
+
+    # MAX_BUFFER_SIZE is how big the message can be
+    # this is test if it's sufficiently big
+    import sys
+    siz = sys.getsizeof(input_from_client_bytes)
+    if  siz >= MAX_BUFFER_SIZE:
+        print("The length of input is probably too long: {}".format(siz))
+
+    # decode input and strip the end of line
+    input_from_client = input_from_client_bytes.decode("utf8").rstrip()
+
+    res = do_some_stuffs_with_input(input_from_client)
+    print("Result of processing {} is: {}".format(input_from_client, res))
+
+    vysl = res.encode("utf8")  # encode the result string
+    conn.sendall(vysl)  # send it to client
+    conn.close()  # close connection
+    print('Connection ' + ip + ':' + port + " ended")
+
+def start_server():
+
+    import socket
+    soc = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    # this is for easy starting/killing the app
+    soc.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    print('Socket created')
+
+    try:
+        soc.bind(("127.0.0.1", 12345))
+        print('Socket bind complete')
+    except socket.error as msg:
+        import sys
+        print('Bind failed. Error : ' + str(sys.exc_info()))
+        sys.exit()
+
+    #Start listening on socket
+    soc.listen(10)
+    print('Socket now listening')
+
+    # for handling task in separate jobs we need threading
+    from threading import Thread
+
+    # this will make an infinite loop needed for 
+    # not reseting server for every client
+    while True:
+        conn, addr = soc.accept()
+        ip, port = str(addr[0]), str(addr[1])
+        print('Accepting connection from ' + ip + ':' + port)
+        try:
+            Thread(target=client_thread, args=(conn, ip, port)).start()
+        except:
+            print("Terible error!")
+            import traceback
+            traceback.print_exc()
+    soc.close()
+
+start_server()
+```
+
+Code for client is very simple:
+
+```language-python
+# client.py
+
+import socket
+
+soc = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+soc.connect(("127.0.0.1", 12345))
+
+clients_input = input("What you want to proceed my dear client?\n")
+soc.send(clients_input.encode("utf8")) # we must encode the string to bytes
+result_bytes = soc.recv(4096) # the number means how the response can be in bytes
+result_string = result_bytes.decode("utf8") # the return will be in bytes, so decode
+
+print("Result from server is {}".format(result_string))
+```
+
+All you need to do now is to run the server script in one window by `python server.py` and then run the client by `python client.py` in some another. It should ask you for input and after pressing the enter the server should return the output.
+
+The most inspiration came from [this article](http://www.binarytides.com/python-socket-server-code-example/).
+
+# Periodically push date to server
+It might be handy to be able to push data periodically without needing to open connection again and again. Here is an example what I did when I want to push row by row two column table.
+
+```language-python
+# client
+
+import socket
+
+soc = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  
+soc.connect(("127.0.0.1", 12345))
+
+import random
+data = zip([random.randint(1,1000) for i in range(1000)],
+ [random.randint(1,1000) for i in range(1000)])
+
+for x, y in data:
+    # send x and y separated by tab 
+    data = "{}\t{}".format(x,y)
+    soc.sendall(data.encode("utf8"))
+    
+    # wait for response from server, so we know
+    # that server has enough time to process the
+    # data. Without this it can make problems
+
+    if soc.recv(4096).decode("utf8") == "-":
+        pass
+
+# end connection by sending this string
+soc.send(b'--ENDOFDATA--')
+```
+and the server side is as follows (`start_server` function is same as above):
+
+```language-python
+# server
+def rec_data(conn, MAX_BUFFER_SIZE):
+    input_from_client_bytes = conn.recv(MAX_BUFFER_SIZE)
+
+    import sys
+    siz = sys.getsizeof(input_from_client_bytes)
+    if  siz >= MAX_BUFFER_SIZE:
+        print("The length of input is probably too long: {}".format(siz))
+    
+    input_from_client = input_from_client_bytes.decode("utf8").rstrip()
+
+    return input_from_client
+
+def client_thread(conn, ip, port, MAX_BUFFER_SIZE = 88888):
+    
+    # read lines periodically without ending connection
+    still_listen = True
+    while still_listen:
+        input_from_client = rec_data(conn, MAX_BUFFER_SIZE)
+        
+        # if you receive this, end the connection
+        if "--ENDOFDATA--" in input_from_client:
+            print('--ENDOFDATA--')
+            conn.close()
+            print('Connection ' + ip + ':' + port + " ended")
+            still_listen = False
+        else:            
+            splin = input_from_client.split('\t')
+
+            print("{}, {}".format(splin[0], splin[1]))
+            
+            # tell client that we can accept another data processing
+            conn.sendall("-".encode("utf8"))
+```

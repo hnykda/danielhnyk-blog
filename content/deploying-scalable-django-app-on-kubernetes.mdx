@@ -1,0 +1,227 @@
+export const metadata = {
+  title: "Deploying scalable Django app on Kubernetes",
+  slug: "deploying-scalable-django-app-on-kubernetes",
+  date: "2018-02-10",
+  tags: ["contribution","IT"],
+};
+
+In our company, we decided to move from AWS world with `docker`/`docker-compose` orchestration to Kubernetes. I thought it will be an easy task, hoping to leverage my (definitely limited) devops experiences from the past few years. Surprisingly, I hit the ground **hard**. 
+
+Don't get me wrong, Kubernetes (k8s) is really a beautiful piece of software and Google Cloud Platform is much nicer and intuitive to work with than AWS. But the beautiful abstraction of k8s comes with its costs. 
+
+I assume that the reader has basic knowledge about how Kubernetes works and how deployments et cetera are created. Most of the inspiration for this came from the following:
+
+1. [Scalable and resilient django](https://harishnarayanan.org/writing/kubernetes-django/)
+2. [Django-Redis-Posgresql](https://medium.com/google-cloud/deploying-django-postgres-redis-containers-to-kubernetes-9ee28e7a146) + the second part ([git dir](https://github.com/waprin/kubernetes_django_postgres_redis))
+
+What I missed in the above though was a concrete example. 
+
+Our old solution was having everything in a quite simple `docker-compose.yml`'s files with external environment files for different environments. So this was the baseline. 
+
+Here I want to summarize how I deployed (IMO) a pretty standard, highly scalable application in Django. These were my requirements:
+
+1. **stateless** `django-workers` - the logic, the core, the heart of the solution. Main `django` application must be stateless to allow...
+2. **horizontal scalability** for `django-workers` - being able to scale the app simply by adding additional workers
+3. **scalable** `cache` - `redis` in master-slave configuration, enabling adding additional slaves on fly.
+4. **managed** `db` - in the Google Cloud SQL (postgresql)
+5. **decoupled** - `db`, `cache`, `django-workers` are on their own
+6. **static-files** hosted on google CDN (google cloud storage)
+7. **cheap** - leveraging k8s' autoscaling to save money during the low load but being able to spike during high seasons
+8. **secure** - following up to date security recommendations
+9. **multienvironment** - minimizing distance from testing (staging) and production environment (and maintanance)
+9. **maintainable** - ideally using CI for new releases, leveraging [helm](https://helm.sh/), development must be still possible without any layer of containerizing, simple `python manage.py runserver` must bring up the server without any issues.
+
+[Here is my solution](https://github.com/hnykda/scalable-django-helm-chart) and it's being described below. You can find a `settings.py` file in the repository as well, so you know what values maps from the Kubernetes elements into django app. 
+
+# Database
+Using GCP SQL required the following steps:
+
+0. creating a new GCP DB
+1. migrating the existing AWS RDS database
+
+## Creating new SQL instance and database
+That's easy. Go to [SQL overview](https://console.cloud.google.com/sql/instances) and create a new SQL instance, ideally [provisioning an internal IP address](https://cloud.google.com/sql/docs/postgres/configure-private-ip#configuring_an_instance_to_use_private_ip_at_creation_time) on the same network as your cluster (by default you have only one: `default`, so if you don't know what this means, just ignore it). Create a new user `myappuser` (choose whatever username of course) using the Web UI, as well as create a new DB `djangoappdb` next to the default `postgres`. The db user, the password, db name and IP address must be later specified in the configs - django app obviously needs them.
+
+## Migrating existing database
+I needed to dump the existing PostgreSQL instance in amazon RDS. The easiest for me was to go to the docker machine with the production instance and do:
+
+```bash
+$ docker exec -ti djangoapp sh
+
+# had to install postgresql on my alpine base image
+# $ apk update
+# $ apk add postgresql 
+
+# now the dump, where I could reuse the containers env vars
+pg_dump -h $DJANGO_APP_DB_HOST -U $DJANGO_APP_USER --no-owner --format=plain $DJANGO_APP_DB_NAME > dump.sql  # now insert $DJANGO_APP_DB_PASSWORD
+```
+
+This gave me copy of my production DB. To be able to import it into Google SQL, I had to remove the following lines starting on 20th line in the dump:
+
+```bash
+CREATE EXTENSION IF NOT EXISTS plpgsql WITH SCHEMA pg_catalog;
+--
+-- Name: EXTENSION plpgsql; Type: COMMENT; Schema: -; Owner: -
+--
+COMMENT ON EXTENSION plpgsql IS 'PL/pgSQL procedural language';
+```
+it's probably something by default available on AWS RDS but not in Google SQL. I really didn't care. After the removal, I could proceed further.
+
+First, I had to go to Google Cloud Storage settings and create a new bucket to be able to load the dump there. Name however you want and upload the dump there. I used:
+
+```bash
+gsutil cp dump.sql gs://dump123/dump.sql
+```
+
+Now go to GCP SQL again and click on import. Put the path to the GCS dump and select the database we created earlier (`djangoappdb`). Set the import user to the previously created `myappuser`. 
+
+
+```bash
+DJANGO_APP_DB_HOST: "DB IP address from the previous step"
+DJANGO_APP_DB_PORT: "5432"
+DJANGO_APP_DB_NAME: "djangoappdb"  # DB name where you import the data
+```
+
+which is in my case all together consumed in `settings.py` as env vars:
+```python
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.' + os.environ.get('DJANGO_APP_DB_ENGINE', 'sqlite3'),  # this is in case of PSQL: `postgresql_psycopg2`
+        'NAME': os.environ.get('DJANGO_APP_DB_NAME', os.path.join(BASE_DIR, 'db.sqlite3')),
+        'USER': os.environ.get('DJANGO_APP_DB_USER'),
+        'HOST': os.environ.get('DJANGO_APP_DB_HOST'),
+        'PORT': os.environ.get('DJANGO_APP_DB_PORT'),
+        'PASSWORD': os.environ.get('DJANGO_APP_DB_PASSWORD'),
+    }
+}
+```
+
+# Static files
+To make the `django-worker` stateless, I needed to move the static files out of the local storage. That means that all replicas of the django-worker will have the same state of statics. 
+
+One solution would be creating some shared volume, but why not taking leverage of the cheap and fast Google Cloud Storage instead of managing some volume?
+
+Hence, just go to the GCS and create a bucket where we'll copy the static files during deployment.
+
+The only change I had to do in my `settings.py` was:
+
+```bash
+STATIC_URL = os.getenv('DJANGO_APP_STATIC_URL', '/static/')
+```
+and when deploying, setting env var:
+```bash
+DJANGO_APP_STATIC_URL = "gs://my-bucket/static"
+```
+
+to copy the files over there, I do:
+
+```bash
+python manage.py collectstatic --no-input --verbosity 1
+gsutil rsync -R ./static gs://my-bucket/static
+```
+
+## CORS
+To be able to fetch data from GCS, you need to set up CORS on the bucket.
+
+```python
+[
+    {
+        "origin": [
+            "https://your-domain",
+            "http://you-can-specify-even-more-than-one",
+        ],
+      "responseHeader": ["Content-Type"],
+      "method": ["GET", "HEAD"],
+      "maxAgeSeconds": 3600
+    }
+]
+```
+save the JSON above as `cors.json` and execute:
+```bash
+gsutil cors set cors.json gs://{your-bucket}
+```
+
+# Cache
+This was actually again quite easy. Basically, we deploy one `redis-master` and multiple `redis-slave`s as needed. See the charts for more information, there are no gotchas.
+
+To preserve easy development - not having to run redis cache - you want to have `locmemcache` available. But to leverage multiple caches in `django_redis.cache.RedisCache` driver, you need to specify multiple caches (hence the split below). I solved this as follows: 
+
+```python
+CACHE_LOCATION = os.getenv('DJANGO_APP_CACHE_LOCATION', 'wonderland').split()
+CACHES = {
+    "default": {
+        "BACKEND": os.getenv('DJANGO_APP_CACHE_BACKEND',
+                             'django.core.cache.backends.locmem.LocMemCache'),
+        # e.g. redis backend supports multiple locations in list (for replicas), 
+        # while e.g. LocMemCache needs only a string
+        "LOCATION": CACHE_LOCATION[0] if len(CACHE_LOCATION) == 1 else CACHE_LOCATION, 
+    }
+}
+```
+
+this consumes the following in the deployment:
+
+```python
+  DJANGO_APP_CACHE_BACKEND: "django_redis.cache.RedisCache"
+  # first element here is considered master
+  DJANGO_APP_CACHE_LOCATION: "redis://redis-master:6379/1 redis://redis-slave:6379/1"
+```
+
+# Networking
+This is actually easier than I thought and that it is in `docker-compose`. First of all, I didn't need `nginx` anymore as a proxy/load balancer (yay! One thing less to care about). 
+
+First of all, I went to `networking - external IP address` [here](https://console.cloud.google.com/networking/addresses/) and created a new IP address. This is what we need to set to our loadBalancer:
+
+```yaml
+apiVersion: v1
+kind: Service
+spec:
+  type: LoadBalancer
+  loadBalancerIP: <THE_STATIC_IP>
+```
+
+For HTTPS, you'll need an ingress, which is not covered in this tutorial but has there are plenty of articles for this already.
+
+# Release and deploy
+
+It's really just:
+
+1. build and push a new image `docker build -t $IMAGE .`
+2. manually make an (optionally backward-compatible) migration
+3. collect static files and upload them to GCS (as above)
+4. use helm to deploy new release (see below)
+5. optionally create a new migration to remove obsolete tables/columns... after all *old* pods are replaced by the new code
+
+## Helm
+Using helm is quite no brainer and there is really not much I could tell here.
+
+To install the chart, I did (once):
+```bash
+helm install my-chart -f my-chart/values.staging.yaml
+# this returned RELEASE_NAME
+```
+
+Then, to make a new release of the chart, all I have to do is:
+```bash
+helm upgrade $RELEASE_NAME my-chart -f my-chart/values.staging.yaml
+```
+
+## Environment variables and secrets
+I tried to parametrize the chart as much as possible into `values.yaml`. The environment-specific values are then placed into appropriate `values.<env>.yaml`. Hence the `-f my-chart/values.staging.yaml` switch above. Secrets are still part of the chart except for the ones for the database. 
+
+To encode secrets, I used [GCP KMS](https://cloud.google.com/kms/) with [Sops](https://github.com/mozilla/sops). Create a keyring and a key and then you can encode yaml secrets as:
+
+```
+sops --gcp-kms <your-key-here> -i -e secrets.<env>.yaml
+```
+
+and before the deployment you can just
+```
+sops -d secrets.<env>.yaml
+```
+
+and then simply reference it as additional values file:
+
+```
+helm upgrade $RELEASE_NAME my-chart -f my-chart/values.staging.yaml -f my-chart/values.staging.yaml.decoded
+```

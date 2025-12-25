@@ -1,0 +1,101 @@
+export const metadata = {
+  title: "Performance cost of dm-crypt (LUKS) with btrfs on SSD",
+  slug: "performance-cost-of-dm-crypt-luks-with-btrfs-on-sss",
+  date: "2018-08-11",
+  tags: ["linux","contribution","IT"],
+};
+
+I just finally managed to encrypt my `home` folder and I wanted to check what is the performance cost of the encryption. It was great to see that none (doing simple synthetic benchmarking)!
+
+# Benchmarking
+I followed [Arch Linux benchmarking wiki](https://wiki.archlinux.org/index.php/Benchmarking#dd) and used `dd` for the benchmark. As you can see on the numbers bellow, they are practically same. 
+
+## Encrypted disk
+
+```language-bash
+[root@think460s ssd_encryption]# dd if=/dev/zero of=tempfile bs=1M count=1024 conv=fdatasync,notrunc status=progress
+1024+0 records in
+1024+0 records out
+1073741824 bytes (1.1 GB, 1.0 GiB) copied, 1.38944 s, 773 MB/s
+[root@think460s ssd_encryption]# echo 3 > /proc/sys/vm/drop_caches
+[root@think460s ssd_encryption]# dd if=tempfile of=/dev/null bs=1M count=1024 status=progress
+993001472 bytes (993 MB, 947 MiB) copied, 2 s, 496 MB/s
+1024+0 records in
+1024+0 records out
+1073741824 bytes (1.1 GB, 1.0 GiB) copied, 2.14522 s, 501 MB/s
+[root@think460s ssd_encryption]# dd if=tempfile of=/dev/null bs=1M count=1024 status=progress
+1024+0 records in
+1024+0 records out
+1073741824 bytes (1.1 GB, 1.0 GiB) copied, 0.312154 s, 3.4 GB/s
+[root@think460s ssd_encryption]# dd if=tempfile of=/dev/null bs=1M count=1024 status=progress
+1024+0 records in
+1024+0 records out
+1073741824 bytes (1.1 GB, 1.0 GiB) copied, 0.225289 s, 4.8 GB/s
+[root@think460s ssd_encryption]# dd if=tempfile of=/dev/null bs=1M count=1024 status=progress
+1024+0 records in
+1024+0 records out
+1073741824 bytes (1.1 GB, 1.0 GiB) copied, 0.2137 s, 5.0 GB/s
+[root@think460s ssd_encryption]# dd if=tempfile of=/dev/null bs=1M count=1024 status=progress
+1024+0 records in
+1024+0 records out
+1073741824 bytes (1.1 GB, 1.0 GiB) copied, 0.231491 s, 4.6 GB/s
+[root@think460s ssd_encryption]# dd if=tempfile of=/dev/null bs=1M count=1024 status=progress
+1024+0 records in
+1024+0 records out
+1073741824 bytes (1.1 GB, 1.0 GiB) copied, 0.241452 s, 4.4 GB/s
+```
+
+## On non-encrypted disk
+```language-bash
+[root@think460s ~]# dd if=/dev/zero of=tempfile bs=1M count=1024 conv=fdatasync,notrunc status=progress
+1024+0 records in
+1024+0 records out
+1073741824 bytes (1.1 GB, 1.0 GiB) copied, 1.50617 s, 713 MB/s
+[root@think460s ~]# echo 3 > /proc/sys/vm/drop_caches
+[root@think460s ~]# dd if=tempfile of=/dev/null bs=1M count=1024 status=progress 
+1001390080 bytes (1.0 GB, 955 MiB) copied, 2 s, 500 MB/s
+1024+0 records in
+1024+0 records out
+1073741824 bytes (1.1 GB, 1.0 GiB) copied, 2.12489 s, 505 MB/s
+[root@think460s ~]# dd if=tempfile of=/dev/null bs=1M count=1024 status=progress 
+1024+0 records in
+1024+0 records out
+1073741824 bytes (1.1 GB, 1.0 GiB) copied, 0.299011 s, 3.6 GB/s
+[root@think460s ~]# dd if=tempfile of=/dev/null bs=1M count=1024 status=progress 
+1024+0 records in
+1024+0 records out
+1073741824 bytes (1.1 GB, 1.0 GiB) copied, 0.223807 s, 4.8 GB/s
+[root@think460s ~]# dd if=tempfile of=/dev/null bs=1M count=1024 status=progress 
+1024+0 records in
+1024+0 records out
+1073741824 bytes (1.1 GB, 1.0 GiB) copied, 0.217937 s, 4.9 GB/s
+[root@think460s ~]# dd if=tempfile of=/dev/null bs=1M count=1024 status=progress 
+1024+0 records in
+1024+0 records out
+1073741824 bytes (1.1 GB, 1.0 GiB) copied, 0.220103 s, 4.9 GB/s
+[root@think460s ~]# dd if=tempfile of=/dev/null bs=1M count=1024 status=progress 
+1024+0 records in
+1024+0 records out
+1073741824 bytes (1.1 GB, 1.0 GiB) copied, 0.216287 s, 5.0 GB/s
+```
+
+### Configuration
+* drive: `SanDisk SD8TN8U512G1001`
+* CPU: `i7-6600U`
+* Arch Linux: `4.17.13-arch1-1-ARCH`
+
+#### cryptsetup status 
+```
+sudo cryptsetup status home-dan-encr                                                              22:04:01
+[sudo] password for dan: 
+/dev/mapper/home-dan-encr is active and is in use.
+  type:    LUKS2
+  cipher:  aes-xts-plain64
+  keysize: 256 bits
+  key location: keyring
+  device:  /dev/sda6
+  sector size:  512
+  offset:  8192 sectors
+  size:    660594688 sectors
+  mode:    read/write
+```

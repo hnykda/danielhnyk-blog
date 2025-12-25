@@ -1,0 +1,32 @@
+export const metadata = {
+  title: "Choosing framework for building Neural Networks (mainly RRN - LSTM)",
+  slug: "choosing-framework-building-neural-networks-mainly-rrn-lstm",
+  date: "2015-07-25",
+  tags: ["data-science","contribution"],
+};
+
+I had to choose a suitable framework for creating recurrent neural networks. 
+**Warning**: This is a very subjective choice!
+
+My requirements
+===============
+
+-   **no non-python dependencies** - I'm not really fan of installing anything else which cannot be installed by `pip` into virtualenv. And sometimes it is not even possible when you work on clusters where you do not have root access. Compiling it into home folder is usually possible, but annoying.
+-   **build on Theno** - for speed and easy to use GPU computing
+-   **LSTM build-in** - I don't want to implement LSTM myself. I want building blocks which I could just connect together.
+-   **Easy to use and nice interface** - possibly something I'm used to from `scikit-learn`: `initialize` -\> `fit` -\> `predict`. It is all I need and want :) .
+-   **full Python 3 support** - this surprisingly wasn't big problem
+
+List of options
+---------------
+
+-   [Lasagne](https://github.com/Lasagne/Lasagne) - In 29. 06. 2015 the RNN hadn't been implemented yet. But it should come soon, because there is this pending [pull request](https://github.com/Lasagne/Lasagne/pull/294) and for some reason [nntools](https://github.com/skaae/nntools/tree/recurrent) should be merged also.
+-   [nolearn](https://github.com/dnouri/nolearn) - this is just a wrapper for existing libraries and Lasagne. Personally, I don't see why I should use this instead of native framework (some of them have their own `scikit-learn` learn wrappers too)
+-   [pybrain](https://github.com/pybrain/pybrain) - don't use it for anything else but playing. Even though it is created by pretty smart people, `pybrain` is not actively developed - the main developers are involved in other projects and `pybrain` is just in *maintenance* mode. So your code will be obsolete in the time of writing it. Furthermore, it doesn't use `theano` and hence is slow for bigger projects. The only bright side is ease of use. But forget about some tweaking - I couldn't use LSTM with more than one layer and making connection between layers was kind of complicated.
+-   [blocks](https://github.com/mila-udem/blocks) - this package is interesting and I would say it might be useful. As far I understand it, it supports variety of building blocks which you could use for building neural networks of your choice. Unfortunately, there isn't a lot of examples, documentation or community help, so no way for me here. The learning curve will be probably steeper than in other frameworks.
+-   [keras](https://github.com/fchollet/keras) - **My choice**. It is build on `theano`, is actively developed (although still kind of young), has some community support (`keras-users` on google groups), nice documentation (well, more like reference guide) which still needs to be drastically improve for novices. One example can be found in my post [Predicting sequences of vectors (regression) in Keras using RNN - LSTM](http://www.danielhnyk.cz/blog/view/predicting-sequences-vectors-keras-using-rnn-lstm). It's also **drastically** improving and developing extremely fast (about several commits and pull requests every day). It has more starts than numpy, 81 contributors and more than 550 forks!
+-   [caffe](https://github.com/BVLC/caffe) - needs non-Python dependencies. Currenly no support for RNN (thanks for noticing me).
+-   [pylearn2](https://github.com/lisa-lab/pylearn2) - It's still under heavy development and it just looks great. I haven't tested it a lot, so you may try it :) .
+- [NEW] [brainstorm](https://github.com/IDSIA/brainstorm) - haven't checked, worth a look :) . 
+
+

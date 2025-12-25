@@ -1,0 +1,70 @@
+export const metadata = {
+  title: "Logstash formatter on stdout for Django",
+  slug: "django-logstash-formatter-on-stdout",
+  date: "2017-09-15",
+  tags: ["python","IT","contribution"],
+};
+
+I wanted seemingly a simple thing: logging using a logstash formatter with extra context on a standard output inside a django application. For some reason, this wasn't obvious at all, but the solution was quite easy in the end.
+
+Here are the steps:
+
+1. Install  [logstash_formatter](https://github.com/ulule/python-logstash-formatter)
+2. add following into django settings logging:
+
+```python
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'logstash': {
+            'class': 'logstash_formatter.LogstashFormatterV1',
+            'format': '{"extra": {"PROJECT_ID": "Gwiqie", "user": true }}',
+        },
+    },
+    'handlers': {
+        'console': {
+            'level': 'INFO',
+            'class': 'logging.StreamHandler',
+            'formatter': 'logstash'
+        },
+    'loggers': {
+        'django': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': True,
+        },
+}
+```
+
+so quite easy in the end. I also used this approach to use logstash format only when `LOGSTASH=True` environment variable is set, so I still have nice and concise logging format during development. Hence I used this:
+
+```python
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'classic': {
+            'format': '[%(asctime)s] [%(levelname)s] [DJANGO] %(module)s %(message)s'
+        },
+        'logstash': {
+            'class': 'logstash_formatter.LogstashFormatterV1',
+            'format': '{"extra": {"PROJECT_ID": "Gwiqie", "user": true }}',
+        },
+    },
+    'handlers': {
+        'console': {
+            'level': 'INFO',
+            'class': 'logging.StreamHandler',
+            'formatter': 'logstash' if os.environ.get('LOGSTASH', 'False') == 'True' else 'classic'
+        },
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': True,
+        },
+    },
+}
+```

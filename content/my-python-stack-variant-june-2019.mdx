@@ -1,0 +1,24 @@
+export const metadata = {
+  title: "My Python stack variant June 2019",
+  slug: "my-python-stack-variant-june-2019",
+  date: "2019-07-04",
+  tags: ["productivity","IT","python"],
+};
+
+Some people ask me about my Python stack. Here it is. This is extremely subjective, of course, I don't claim this is the best for everyone, I am not really that opiniated :-) .
+
+For stateless APIs:
+
+* `fast-api` to build it
+* `uvicorn` to run it
+* `hug` is ugly but sometimes useful, especially when you need  API as well as CLI
+
+For stateful websites:
+
+* `django`
+* `django-rest-framework`
+* `gunicorn`
+
+with `postgre` database, if sqlite3 is not enough (or it runs in a container). For testing, use `pytest`. For formatting, `black` is the correct way. `vulture` can help with the dead code. `bandit` for safety. `Pipenv` for deps, use `pipenv check` for safety. `pandas` when you need to crunch tables of data. When your data are sizable (more than hundreds of MBs), use HDF format with `snappy` compression (hopefully replaced soon by Apache Arrow). 
+
+Always start a project with the newest version (including Python, 3.7 is right as of now). Update often based on database safety checks. 

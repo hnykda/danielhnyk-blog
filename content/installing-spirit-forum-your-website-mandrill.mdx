@@ -1,0 +1,145 @@
+export const metadata = {
+  title: "Installing spirit forum on your django website with Mandrill",
+  slug: "installing-spirit-forum-your-website-mandrill",
+  date: "2015-06-06",
+  tags: ["contribution","python"],
+};
+
+I've found out this beautiful full-featured [forum site](https://github.com/nitely/Spirit) and wanted to integrate it to my website on a separate subdomain (e.g. subdomain.example.com). It wasn't easy though.
+
+It is also necessary to set up an email server allowing you to send confirmation emails (for registration) and to retrieve forgot passwords. For this I used [Mandrill](http://mandrill.com/) - free email service which does all the work for you.
+
+Why spirit?
+===========
+
+-   super clean, simple and nice environment
+-   easy to use - even as a user and also as a administrator
+-   **support last versions of software!** - this should not be underestimated. It support `django 1.8` and of course `Python 3.4`. Glory! No these stupid prehistoric solution for `Python 2`.
+
+The only problem is documentation. There is simply none. So tweaking the site falls to searching for particular phrases using `grep` and trying... Hence, this tutorial.
+
+Why Mandrill?
+=============
+
+-   free up to 12k emails per month
+-   easy to integrate to `django` thanks to `djrill`
+
+Step-by-step
+============
+
+We will integrate `spirit` to our current `django` site, which is deployed by `gunicorn` and `nginx` (but it is independent part). `spirit` forum will run on different domain and will be treated as different site, because of it's highly dependent settings file.
+
+Clone and install spirit
+------------------------
+
+download `spirit` form [github](https://github.com/nitely/Spirit) by `git clone https://github.com/nitely/Spirit.git`. If you need, edit it to your needs before installation. For example, I decided to use new `Pillow` 2.8.1 instead of 2.6 and switched to `experimental` branch, which has `django 1.8` support. Then activate your `virtualenv` and install it by `pip install <path_to_cloned_spirit>/Spirit`.
+
+Settings for two sites
+----------------------
+
+Now we will prepare project for having multiple sites. We will split `settings.py` to two parts - one common for both `spirit` and your regular site and second part which is related to your regular site.
+
+We need to create new `SITE_ID` for each site. In this example it's `SITE_ID=1` for the main domain/site, e.g. `www.mainsite.com`. `SITE_ID=2` is for `spirit.mainsite.com`, where we want to have spirit forum.
+
+Then create third file `spirit.py` for your spirit settings file. Now, you should have three settings files. The main one, which is common for both (definition of static and media dir, language, zone, databases...), then `spirit.py`, where is at least `from spirit.settings import *` and `SITE_ID = 2` (for now). The third one `mysite.py` with whatever you had in you `common.py` and clash with settings for `spirit` [settings file](https://github.com/nitely/Spirit/blob/master/spirit/settings.py). Plus, you should have `SITE_ID=1` in this settings file. In both files `spirit.py` and `mysite.py` you should paste `from common import *`.
+
+Put these three files into e.g. `<project_name>/settings/`. [Example here](https://github.com/kotrfa/danielhnyk.cz/tree/be2c59ec42696e61a5de767e8c8e5fc66759b23c/django/mw/settings)
+
+Next thing we need to create twice (not necessarily, but for simplicity yes) you need to create two `wsgi_mysite.py` and `wsgi_spirit.py`, where you set insert new name of settings file instead the old one `<project_name>.settings`. So the line with the setting file should look like this: `os.environ.setdefault("DJANGO_SETTINGS_MODULE", "<project_name>.settings.spirit")`
+
+Finally, create `urls_mysite.py` and `urls_spirit.py`. In the first one leave everything as you have now and the second add to `urlpatterns`: `url(r'^', include('spirit.urls')),`. According to this changes, you need to add this to your `spirit` settings file `ROOT_URLCONF = '<project_name>.urls_spirit'` and same for the `mysite` part.
+
+That can be found [here](https://github.com/kotrfa/danielhnyk.cz/tree/be2c59ec42696e61a5de767e8c8e5fc66759b23c/django/mw)
+
+Mandrill settings
+-----------------
+
+First, install `djrill` by `pip install djrill`.
+
+Now we need to setup Mandrill. You need to create an account there and generate API key (that is easy). Add this to `spirit_settings.py`:
+
+```language-python
+INSTALLED_APPS += ( "djrill",)
+
+MANDRILL_API_KEY = "j4kdhyYx7w" # EXAMPLE of your mandrill key
+EMAIL_BACKEND = "djrill.mail.backends.djrill.DjrillBackend"
+DEFAULT_FROM_EMAIL = "you@example.com" # fill by your email of course
+```
+
+Syncing, cache and routing
+--------------------------
+
+Since now you need to specify settings file when using `manage.py`. Let's `syncdb` for both projects by running:
+
+```language-bash
+python manage.py migrate --settings=<project_name>.settings.spirit
+python manage.py migrate --settings=<project_name>.settings.mysite
+```
+
+then run:
+
+```language-bash
+python manage.py createcachetable spirit_cache --settings=<project_name>.settings.spirit
+```
+
+and finally:
+
+```language-bash
+python manage.py collectstatic --settings=<project_name>.settings.spirit
+```
+
+nGinx and Gunicorn
+------------------
+
+You just need to add new special server for spirit subdomain. E.g.:
+
+``` {.sourceCode .nginx}
+upstream spirit {
+    server unix:<path_to_gunicorn_socket_file>/spirit.sock;
+}
+
+server {
+    listen 80;
+    server_name spirit.mainsite.com;
+
+    location / {
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header Host $http_host;
+        proxy_redirect off;
+
+        proxy_pass   http://spirit;
+    }
+    # something here, like location, alias...
+}
+
+
+upstream mainserver {
+    server unix:<path_to_gunicorn_socket_file>/main.sock;
+}
+
+server {
+    listen 80;
+    server_name www.mainsite.com;
+
+    location / {
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header Host $http_host;
+        proxy_redirect off;
+
+        proxy_pass   http://mainserver;
+    }
+ # something here for you...
+}
+```
+
+And finally, let `gunicorn` server the sites to these socket files, at which `nGinx` listens.
+
+```language-bash
+gunicorn mw.wsgi_blog:application --bind=unix:main.sock
+gunicorn mw.wsgi_spirit:application --bind=unix:spirit.sock
+```
+
+All sources can be found on [github](https://github.com/kotrfa/danielhnyk.cz/tree/be2c59ec42696e61a5de767e8c8e5fc66759b23c/django/mw)
+
+That's all :) . Enjoy
+

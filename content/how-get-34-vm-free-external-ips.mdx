@@ -1,0 +1,76 @@
+export const metadata = {
+  title: "How to get 34 VM for free (with different external IPs)",
+  slug: "how-get-34-vm-free-external-ips",
+  date: "2015-08-03",
+  tags: ["IT","contribution"],
+};
+
+In one of my projects I needed to visit specific domain, pass some information there and gather the output. Unfortunately, API wasn't available and I had to do it myself using Python + Selenium. Additionally, the domain had limit on how many request one IP could do. Hence, I needed as many VMs with different external IPs. Plus, I wasn't willing to pay much.
+
+As a result, I've found a way how to get about 34 VMs for few days and then 24 for about one month **for free**.
+
+All you need is your credit card (don't worry - you'll haven't pay anything, if you do not exceed the limit).
+
+Sign in to [Google Compute](https://console.developers.google.com/). You will get 300 USD on two months for free. These can be used for renting VMs.
+
+Because creating instances manually is for a long time, here is what we do. Create virtualenv with Python 2 and download [gcloud](https://pypi.python.org/pypi/gcloud) - it's an utility from Google to easily manage your engines - and then install it to your virtualenv. Go to [Developer Console](https://console.developers.google.com/project/) and create a new project. When it will be created, you can choose it from menu on top-left bar. Remember the `nameOfProject-XXXX` which you can find there.
+
+Then go to [Help in google](https://cloud.google.com/container-engine/docs/before-you-begin) and **Enable the Container Engine API**.
+
+Now set the google project by this command `gcloud config set project nameOfProject-XXXX`. Now you should be able to create new instances and manipulate with them using terminal.
+
+An example how to create an instance is here:
+
+```language-bash
+$ gcloud compute instances create example-instance \            
+      --zone us-central1-a \
+      --machine-type f1-micro \
+      --image ubuntu-15-04
+```
+
+there are additional tweaks, like changing machine type or an installed image. You can find this options when you try to create engine using browser. An example creates the least powerful engine with Ubuntu 15.04 in US zone.
+
+Let's create 8 instances in a for loop, called `compX`:
+
+```language-bash
+$ for i in {1..8}; do gcloud compute instances create comp$i \
+      --zone us-central1-f \                
+      --machine-type f1-micro \             
+      --image ubuntu-15-04; done
+```
+
+why 8? Because it is a limit of engines on every zone Google offers. There are currently 3 zones: `asia`, `europe` and `us`. So now you can add additional 8 engines to rest of the zones by:
+
+```language-bash
+$ for i in {1..8}; do gcloud compute instances create comp$i \
+      --zone asia-east1-b \                
+      --machine-type f1-micro \             
+      --image ubuntu-15-04; done
+
+$ for i in {1..8}; do gcloud compute instances create comp$i \
+      --zone europe-west1-c \                
+      --machine-type f1-micro \             
+      --image ubuntu-15-04; done
+```
+
+and that's it! Now you have 24 VMs for free for a pretty long time! It is the maximum you can have with Google Compute with the free tier.
+
+The rest 10 VMs you can create on [Digital Ocean](https://cloud.digitalocean.com/droplets). Unfortunately, there isn't any API for creating VMs automatically, so you have to create them manually. **BE CAREFUL!** With only 10 USD which you get for free from digital ocean you will get out of the limit very fast. One cheapest VM cost about 0.0135 USD per hour and you pay even if you turn the VM down (you have to delete them completely)!
+
+You can also create some VMs in Amazon EC2. But I couldn't found out how to limit the usage so I won't be charged.
+
+How to manage these VMs?
+========================
+
+I recommend you the clusterSSH. For configuring the SSH config file, gcloud can help you a lot. You can generate your SSH key and then this command will add configuration for engines to your `.ssh/config` file:
+
+```language-bash
+gcloud compute config-ssh --ssh-key-file ~/.ssh/google_compute
+```
+
+for droplets, you have to again do it manually.
+
+Then just configure `clusterSSH` according to guides.
+
+That's it! Enjoy :)
+

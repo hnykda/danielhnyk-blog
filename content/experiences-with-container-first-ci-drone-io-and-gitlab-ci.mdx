@@ -1,0 +1,137 @@
+export const metadata = {
+  title: "Experiences with container-first CI (drone.io and gitlab CI)",
+  slug: "experiences-with-container-first-ci-drone-io-and-gitlab-ci",
+  date: "2018-09-09",
+  tags: ["IT","programming","experience"],
+};
+
+# Learning about CI
+Things move fast. I wasn't aware of CI advantages only about a year ago. I didn't use it much, well, there wasn't a lot of reasons why to do so. 
+
+We built and pushed our containers manually, the same for the tests. That changed with migration to kubernetes - I decided that with this change, considering additional complexity (such as templating yamls using `helm` etc.), we should go with CI by default.
+
+I decided to go with `drone.io`, mostly because it was ridiculously easy to deploy it on our k8s cluster using the default chart. It was fast, easy and effective. It took some time until we found out "the way", but it was worth it and now we benefit from it literally every push.
+
+It's hard to explain how big benefits there are from having proper CI. We deploy much more often because it's only a command or two away and you don't have to worry about doing something wrong. Every team member is able to deploy an app as soon as he's added to the repo. That's a massive increase of a bus factor. 
+
+# drone.io
+As I mentioned, it's really easy to get drone up and running using [this helm chart](https://github.com/helm/charts/tree/master/incubator/drone). Our configuration is:
+
+1. using github auth for authentication (because we use github only)
+2. use SSD disks on our cluster
+3. use 2 CPU machines
+
+We also connect to the host's docker socker, because we usually:
+
+1. build the app's container in the first step
+2. use this container in the tests (and additional app-specific CI steps)
+
+This enables us to test the "true" thing which is going to production. I am not sure if this is not an antipattern, but it simply works. Additionally, we can leverage docker caching (if you don't have too much of agents because caching happens on the agent layer). 
+
+# Gitlab CI (with docker executor)
+Looking just a few years back, it wasn't "normal" that you would get CI for free. Fortunately, it's not the case anymore thanks to the all mighty Gitlab, which offer free CI service (generally, even though we still use github and I have almost all the projects there as well, I start all the new projects on gitlab). I _really_ like the fact that it gives you some free shared runners (2000min/month), but what just blowed my mind is that you can easily run your own runner on your own computer without needing anything special (I don't consider docker + gitlab-runner binary special). 
+
+## Setting it up
+I must say that the documentation is not really appealing for this usecase, so I am going to summarize what did I do here:
+
+1. installed `gitlab-runner` (on Arch linux, just `pacman -S gitlab-runner`
+2. went to the `Gitlab > Settings > CI/CD`, got the token for installing personal runner
+3. created the runner `gitlab-runner register` and selected docker executor
+4. edited the runner in the Gitlab on the runner page to enable running untagged jobs
+5. run the runner by `gitlab-runner run -c /etC/gitlab-runner/config.toml`
+
+It was possible to run it without `sudo`.
+
+My config then looks like this (see comments!):
+```yaml
+image: docker:latest
+
+services:
+  - docker:dind
+
+variables:
+  DOCKER_HOST: tcp://docker:2375
+  # CAUTION! I had to change this from the recommended default `overlay`
+  # because that is not included in the standard Archlinux kernel
+  DOCKER_DRIVER: vfs
+  CONTAINER_IMAGE: registry.gitlab.com/$CI_PROJECT_PATH
+  MAIN_PIPE_IMAGE: registry.gitlab.com/$CI_PROJECT_PATH:$CI_BUILD_REF
+
+before_script:
+  - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN registry.gitlab.com
+
+
+build:
+  # this build the image using cache from previous runs and also push it there for reuse later
+  stage: build
+  script:
+    - docker pull $CONTAINER_IMAGE:latest || true
+    - docker build --cache-from $CONTAINER_IMAGE:latest --tag $CONTAINER_IMAGE:latest --tag $MAIN_PIPE_IMAGE .
+    - docker push $MAIN_PIPE_IMAGE  # for use in subsequent steps and deploy
+    - docker push $CONTAINER_IMAGE:latest  # for cache
+
+conventions:
+  # runs tests inside the builded image
+  stage: test
+  script:
+    - docker run $MAIN_PIPE_IMAGE sh scripts/pep8-check.sh
+
+deploy:
+  # deploy, only in case of tags
+  stage: deploy
+  before_script:
+    - apk add --update socat openssh bash python3
+    - pip3 install docker-compose
+    - eval $(ssh-agent -s)
+    - mkdir -p ~/.ssh
+    - echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add - > /dev/null
+    - echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config
+  script:
+    - ./scripts/deploy-docker-compose.sh $MAIN_PIPE_IMAGE $CI_BUILD_TOKEN $CI_COMMIT_TAG
+  only:
+    - tags
+```
+
+and the deploy `deploy-docker-compose.sh` script contains:
+```bash
+#!/usr/bin/env bash
+
+set -o pipefail  # trace ERR through pipes
+set -o errtrace  # trace ERR through 'time command' and other functions
+set -o nounset   ## set -u : exit the script if you try to use an uninitialised variable
+set -o errexit   ## set -e : exit the script if any statement returns a non-true return value
+
+CROIN_IMAGE=$1
+CI_TOKEN=$2
+CI_TAG=$3
+
+REMOTE={USER}@{SOMEWHERE}
+export DOCKER_HOST=unix:///tmp/docker.sock
+export COMPOSE_PROJECT_NAME=croin
+echo "DEPLOYING $CI_TAG $CROIN_IMAGE"
+
+echo " * OPENING DOCKER SOCKET TUNNEL"
+socat \
+  "UNIX-LISTEN:/tmp/docker.sock,reuseaddr,fork" \
+  "EXEC:'ssh -kTax $REMOTE socat STDIO UNIX-CONNECT\:/var/run/docker.sock'" \
+  &
+
+echo " * LOGIN WITH GITLAB-CI TOKEN"
+docker login -u gitlab-ci-token -p $CI_TOKEN registry.gitlab.com
+
+echo " * PULLING NEW IMAGES"
+docker pull $CROIN_IMAGE
+docker tag $CROIN_IMAGE $COMPOSE_PROJECT_NAME:$CI_TAG
+docker tag $CROIN_IMAGE croin:production
+echo " * UPDATING RUNNING CONTAINERS"
+docker-compose -f docker-compose.yml -f docker-compose-prod.yml up -d
+```
+
+This is not my original work, you can find various snippets regarding this on the internet.
+
+### gitlab-runner exec
+This functionallity doesn't seem to be that robust as one would imagine and I suspect that with the configabove, I wouldn't be even able to run the whole pipeline as I would wish (such as that that your docker doesn't have to run on `tcp://docker` but more probably on `localhost` - changing the config based on where you run it seems wrong). If you wanna run `exec` with `docker` executor, you need `--docker-privileged`. Complete command: `gitlab-runner exec docker --docker-privileged ...`
+
+
+# Comparison
+Even though I really like Gitlab CI, I think that drone is just simpler and faster. If I have a place to host it, I would use it. I am very dissapointed by drone documentation, but, hey, it's actually not needed. I also hope that we'll get some additional features waiting in PR in the repo (such as assigning repos to specific workers). Drone was built by default with container-first idea. Maybe as a consequence, I also _feel_ that drone is much faster than Gitlab CI.

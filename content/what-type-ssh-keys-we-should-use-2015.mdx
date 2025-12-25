@@ -1,0 +1,16 @@
+export const metadata = {
+  title: "What type of ssh keys one should use in 2015",
+  slug: "what-type-ssh-keys-we-should-use-2015",
+  date: "2015-08-13",
+  tags: ["IT","contribution"],
+};
+
+In August 2015 there was an announcement that DSA cipher is not supported in modern versions of SSH (as is e.g. [here](https://www.archlinux.org/news/openssh-70p1-deprecates-ssh-dss-keys/)). `ssh-keygen` currently supports these options: `dsa | ecdsa | ed25519 | rsa | rsa1`.
+
+I was wondering what cipher I should use instead and as it turns out from several discussions and blogs, there is some agreement. Use either:
+
+1.  `RSA` algorithm with length at least 4096 bytes. This can be obtained by e.g. `ssh-keygen -t rsa -b 4096`
+2.  `ed25519` algorithm with default settings. Command for this is `ssh-keygen -t ed25519`
+
+As far as I understand, there is currently no possibility to crack these ciphers up (as far as it is possible in informatics)... As always, it is recommended to change the keys from time to time (e.g. every 2 years), rather than trying to create super long and hence secure key. The reason is clear - it is more probable that someone steal or somehow sniff your key or get access by some other way, then by cracking the key.
+

@@ -1,0 +1,130 @@
+export const metadata = {
+  title: "ML/DS Interviews Praha 2017",
+  slug: "ml-ds-interviews-praha-2017",
+  date: "2017-03-26",
+  tags: ["contribution","work"],
+};
+
+Na přelomu roku 2016/2017 jsem se rozhodl odpovědět na pár nabídek práce, které jsem dostal skrz můj LinkedIn profil. Bylo to hlavně ze dvou důvodů:
+
+1. vystavit se *nepříjemným* situacím
+2. zjistit, co je v Praze skutečně k dispozici za nabídky
+3. jaká je moje *cena*
+4. možná najít novou práci?
+
+kromě toho jsem se samozřejmě naučil, dozvěděl nebo utříbil plno zajímavých věcí, mimo jiné:
+
+* co vlastně od práce očekávám
+* jaké jsou mé požadavky
+* co bych od práce vlastně požadoval
+* jak všechno výše zformulovat
+
+Zde popíši pár mých zkušeností z pár firem + nějaké zamyšlení.
+
+# Způsob hiringu
+V prvním případě bych rád zmínil, že v přístupu k hiringu je u stávajících firem **extrémní** rozdíl. Setkal jsem se několika přístupy a níže je řadím od nejméně úspěšného po nejlepší:
+
+1. Kontaktuje vás externí recruiter bez znalostí ML/DS na vlastní noze.
+2. Kontaktujte vás externí recruiter bez znalostí ML/DS zaplacený firmou pro kterou hiruje.
+3. Kontaktuje vás interní recruiter bez znalostí ML/DS. 
+4. Spojíte se přímo s někým z engineering teamu a nebo recruiterem.
+
+Nepotkal jsem recruitera, co se vyzná v ML či DS. Nenechte se zmýlit - často z nich padá tuna buzzwordů jako big data a podobně, ale to mají většinou z popisku pozice a jinak nemají ponětí, co vlastně ty týmy dělají a s čím pracují. Proto tam taková možnost není. U variant 1-3 jsou dva scénáře - buď se jde rychle na věc, domluví vám schůzku/spojení s inženýry z týmu. A nebo to skončí u něčeho jako *udělejte tohle, já to tady nějak domluvím, my se vám za měsíc ozveme*. 
+
+Proto jediná možnost, jak dle mého můžete nabrat dobré lidi na ML/DS je taková, že se co nejdříve spojíte s někým, kdo tomu v dané společnosti rozumí a bavíte se dále s ním. Představte si, že byste například měl jako nedoktor nabírat specialisty na chirurgii - jak si asi povedete? Většina firem si to neuvědomuje a je to jejich blbost. Jak chcete najmout top lidi, když ani nejste ochotní věnovat 2-3 hodiny času svých inženýru na pohovor? Jiní to také umí, ale rychlost jejich jednání je v řádu týdnů. Jaká je pravděpodobnost, že se dostanete k top lidem, když jen než vám domluví schůzku tak vám mezi tím přijde 10 dalších nabídek? Vůbec nerozumím, jak na tohle může nějaká firma přistoupit. 
+
+V CEAI, kde mají nejprofesionálnější přístup, se kterým jsem se setkal (asi díky Bradfordovým zkušenostem z USA), se o všem jedná v řádu hodin, maximálně dnů. 
+
+# SpaceKnown
+
+**Úlohy**: Úloha se liší dle toho, o jaké místo se ucházíte.
+
+1. Backend: úloha na hledání párů (x*y > x+y) nebo tak něco, dostat se ze složitosti O(n^2) -> O(n). 
+2. Research: odstraňování mraků pomocí neuronek (tedy dost netriviální věc). Máte na to asi týden, odhadem to může člověku zabrat pár desítek hodin. 
+
+**Konkrétní práce:** V research je to relativně zajímavé: čtení white-paperů a reimplementace na digitální data. Problémem je, že satelitní data jsou velmi variabilní a momentálně sítě špatně generalizují. 
+
+**Na čem to selhalo:**
+I když mají HQ v Bay Area a [dostali velké finance](http://www.czechstartups.org/cesky-startup-spaceknow-ziskal-investici-ve-vysi-4-mil-usd/), požadavek na 450-500 Kč/hodina jim přišlo hodně (kolega má tu samou zkušenost a to je ještě zkušenější a schopnější). Nabízejí práci na živnosťák (s USA firmou). Úlohu na research jsem tedy ani nedělal, protože mě nelákalo ztratit týden, když pro mě není zajímavé ohodnocení.
+
+**Osobní dojem:** Všichni byli ve firmě velmi milí a příjemní, nicméně to už dnes beru jako samozřejmost a osobně očekávám něco více. Například požaduji explicitní kroky k vylepšování kultury ve firmě - jak jim to funguje, na co dávají důraz a podobně. To se tady moc neděje. 
+
+# CEAI
+Od VC a CEO Bradforda Crosse jsem dostal automatizovaný mail, na který jsem odpověděl. Měl jsem s ním pak asi jednohodinový hovor. Byl moc fajn, přišlo mi to odlehčené, pragmatické a efektivní. Je dobré se kouknout na jeho přednášku, jde tam poznat, co má u projektů rád (což se shoduje i s mou pozicí). 
+
+Pak jsem měl 2 meetingy osobně v Praze. Šlo o screening CS/Statistics/ML a programování. Nejdřív jsem měl úvodní pohovor a technical screening (asi 2 hodiny), pak druhý 1 hodina technical screening + 1.5h na to napsat klasifikaci pomocí SGD (a třeba perceptronu) v libovolném jazyce (bez knihoven) + vizualizace. Napsal jsem to v Pythonu, fungovalo to, jen to nebylo úplně vyšperkovaný kód (nestíhal jsem).
+
+Hned další den jsem měl další hovor s Bradfordem, dostal jsem nabídku, která byla více než lákavá. Ohodnocení (HPP) šlo někde nad 70k + podíly v jednotlivých startupech. Skvělý model. 
+
+## Krátce k technical screening
+**CS**
+
+* prohledávání ve stromech, co asymptotická složitost a příklady (quicksort, bubblesort), NP a P úlohy a vztahy, kachličkování (+ nápad proč je to NP těžké), příklad non-P úlohy (RSA - faktorizace), další příklady NP těžkých úloh a převody, co to je NP těžká úloha atp., procházení grafů a nejkratší vzdálenost (ohodnocený i neohodnocený), halda a další.
+* rozdíl mezi funkcionálním a objektovým programováním + proč je funkcionální teď hype (paralelizace - ale proč?)
+* co je dynamické programování
+* hladový algoritmus, rozděl a panuj, ...
+
+**Statistika**
+
+* frekvencistická vs bayesovská pravděpodobnost
+* podmíněná pravděpodobnost
+* Gausovo rozdělení
+
+**ML**
+
+* Bayes -> Naive Bayes -> LDA -> QDA
+* cross-validation
+* precision and recall, accuracy, confusion matrix, ...
+* Lineární regrese/Logistická regrese - tvar, odvození koeficientů (analyticky), optimalizační funkce, podmínky na data (rezidua Gaussovská)
+* SVM - čím se liší od regrese (margin vs. lineární separace), kernel trick (co je ten "trick" a příklad nějakého kernelu)
+* redukce atributů - PCA (jak, co, proč, kde to nefunguje...), feature engineering, word embeddings, autoencodéry, SVD, ...
+* úloha na řešení CTR u reklamy a inzerátu inspirovaná úlohou v seznam.cz (TODO video na MLMU meetup) - jak bych to řešil atp - bag of words a tak
+
+**Zajímavá otázka:** Jaký jsem četl v poslední době článek o ML? :-)
+
+Obecně pak jak bych se postavil k nějakému projektu, na kterém má spolupracovat 20 lidí. Chtěli asi outline toho, jak něco řešit. Tady nemám zpětnou vazbu, ale navrhoval jsem věci typu:
+
+1. Používat unit-testy, test driven development
+2. rychlé iterace
+3. myslet na produkt, mít raději end-to-end solution od začátku špatné a postupně ho vylepšovat
+4. VCS
+5. quality assurance
+6. co je pro mě dobrý kód (jako třeba zdokumentovaný, je mi jasné, co dělá, vyznám se v něm)
+7. vyhnout se premature optimization
+
+Obecně fajn vystupování, příjemné, neschazují a nevzdychají. Všechno se děje hrozně rychle - nic jako tuny hierarchie různých HR blbostí, jeden týden initial interview, pak screening, pak call a pracovat zítra :-) . Bradford se zdá jako extrémně schopný a charismatický stratég. Myslí na kulturu. Peter Zvirinsky - s ním jsem měl hlavní část rozhovorů je taky moc milý a schopný :-) . Během tohoto přijímacího pohovoru jsem se naučil hrozně moc věcí. Byli i moc fajn ve chvíli, kdy jsem nabídku z osobních důvodů odmítl. Kdybych hledal novou práci v Praze, jdu do CEAI a každému bych doporučil to samé.
+
+**Pár nesouvisejících informací k CEAI:**
+
+1. They wanted to know about my impression from their interview
+2. They said they like me so would like to dicuss timelines, compensation
+3. They are startup studio - creating startups from scratch by one big engineering team
+4. Every quarter they throw out new sturtup/projects as fast as possible
+5. Everyone gets shares in every projects
+6. Family welcome - it's not scalable to have just young people without accepting kids (no senior people, no female)
+7. it's really fast - everything (girl got hired on the first interview)
+8. very flexible about projects (whatever I like) 
+
+# RocketFuel
+K této firmě jsem se přihlásil na interview přímo přes web. Pravděpodobně se dostanete na kobereček se skvělým inženýrem Arseniy Kuznetsovem (pokud se nepletu, Arseniy má PhD ze Standfordu).
+
+U whiteboard jsem dostal úlohu na `k` závorek a měl jsem navrhnout algoritmus, který ověří správnost závorkování. Bylo tam pak několik variant jako více typů závorek, kolik je možností, generování, kombinatorika atp. (Řešení první varianty vede na použití zásobníku).
+
+Potom se doptával na konkrétní věci k jejich projektu - proč se někde ztrácí nějaké requesty a nesedí čísla, co bych očekával za problémy (děravá data) a jak bych je řešil. Tohle je ten styl *half-open questions*.
+
+Pokud se dostanete přes tento úvod, pak přichází Hackerrank challenge asi na 3 hodiny. Když to dáte, pak následuje několik kol pohovorů s half-open questions s lidmi z Bay Area. Je opravdu mít 100% nastudované to, co dělají. Po skončení první části jsem měl poslat one-page bio a také jsem dostal feedback na schopnosti. Měl bych doplnit algoritmic/computational thinking přes typ hackerrank atp., zároveň z Linkedinu by mělo být jasné, co dělám. Tohle oceňuji :-) .
+
+U testovací úlohy na Hackerrank mi Arseniy radil, ať si pečlivě přečtu zadání, které poskytuje hint jak úlohu řešit (že na tom dost lidí ztroskotá). 
+
+Arseniy nebyl zase tak extra příjemný, ale nepotápěl. Jejich projekt je gargantuovská monstrozita - mají asi 180 PB dat, 200 miliard requestů za den a jedno zobrazení personalizované reklamy s request bid dají pod 100 ms. Jejich cluster má 2000 nodů. Kromě toho mají research team o cca 20 lidech v Bay Area, teď rozšiřují sem do Prahy research centra. 
+
+Obecně jde vidět, že americké firmy mají na pohovory prostě větší standard a schopnosti.
+
+# Jumpshot
+Kontaktovala mě recruiterka, která měla alespoň základní informace o ML/DS. Byla docela příjemná, to jo, ale stejně pořádně nevěděla co bych vlastně pak v reálu dělal. Na to jsem si musel počkat asi měsíc (za tu dobu CEAI nahiruje team!), kdy jsem měl call s šéfem engineeringu. To bylo sice fajn, ale pro mě příliš *inženýrské* a málo *research*. Navíc jsem moc nepochopil, co je vlastně jejich cílem vzhledem ke mně - že by rádi spolupracovali, ale že až jako výhledově atp. Přitom jsem zkušenostmi i schopnostmi přesahoval jejich požadavky. Nerozumím.
+
+# Homecredit
+Tohle bylo super špatné. Kontaktoval mě sice jejich in-house recruiter, ale očividně vůbec netušil, o co jde. Dostal prostě nějaký popis pozice dle template a ten papouškoval + jak to obecně u Homecredit funguje. Nabídka mě zaujala z toho důvodu, že byla do zahraničí (Vietnam, China), kam jsme stejně s přítelkyní někdy chtěli vyrazit. Nicméně nabídka je pouze na 3 roky, nebo tak něco...
+
+A nejen že recruiter nevěděl nic o té pozici, kterou mi nabízel (resp. něco více než co tam bylo napsáno), ale i pozice sama byla něco, na co rozhodně nikoho dobrého nenahirujete. Konkrétně se na ML/DS pozici vyžadovali blbosti jako *pokročilá znalost MS Excel, SAS, Enterprise Miner* a podobný blbosti. U modelů se zasekly někde u lineární regrese (protože na to máte přeci v SAS tlačítko). Nejen, že méně sexy nabídku si nedokážu představit (vizuálně to mimochodem vypadá jako stránky z 90. let - opravdu při velikost 100k zaměstnanců nemají na alespoň b-čkového designera?), ale i popis pozice je tak omezený (přitom detailní), že šance, že se tam bude dělat něco zajímavého, je mizivá.
+

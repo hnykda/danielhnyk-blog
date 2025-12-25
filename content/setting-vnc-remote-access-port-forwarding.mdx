@@ -1,0 +1,77 @@
+export const metadata = {
+  title: "Setting VNC for remote access (with port forwarding)",
+  slug: "setting-vnc-remote-access-port-forwarding",
+  date: "2014-09-25",
+  tags: [],
+};
+
+My friend wanted to remotely work from school on her laptop. SSH wasn't enough for her, since she wanted to see whole IDE.
+
+Since she is also using Linux (Arch Linux), we decided to use utility called `VNC` for that. It took me some time to figure out how to set it properly with whole port forwarding, since there is a little trick with that.
+
+Whole process is really (surprisingly) simple!
+
+Setting up a server
+===================
+
+First we need to set up a server - the computer we want to connect to. In this guide we'll use [tigervnc](http://tigervnc.org/) which can be found in repositories of all common linux distributions. It installs both - server and client.
+
+Now just run in terminal:
+
+    vncserver :1
+
+if this was the first time you run the `vncserver`, it will ask you for password which you'll use for connection. You can change it later by command vncpasswd.
+
+Your server should be running now. You can kill it by:
+
+    vncserver -kill :1
+
+and run it again to see if everything is working.
+
+There is a lot of parameters with which is possible to run `vncserver`. You can find them in manual page or help.
+
+Setting up a client
+===================
+
+Just for testing purposes we're going to try to connect to the same computer. Find out you internal IP (e.g by `ip addr`) and type to terminal:
+
+    vncviewer your.ip.add.ress:1
+
+it should ask for the password you entered earlier and after successful authorization new window should pop-up. It'll be probably black and nothing interesting will be seen. Never mind - we'll work on that in a minute :) . If you proceed here, VNC is successfully working and we just need to add some configuration.
+
+We need to run some graphic environment after starting VNC session. VNC has an option for that in file `~/.vnc/xstartup`. Make a backup of it and than edit original to your needs. My looks like this:
+
+    #!/bin/sh
+
+    exec i3
+
+because I'm using `i3` window manager. If you use e.g. `xfce4`, add `exec startxfce4` or you can try just `startx`.
+
+When you try to login now using `vncviewer`, graphic environment of your choice should be started.
+
+Again, there is bunch of parameters for `vncviewer` command, which can be found by reading it's help or manual page.
+
+Setting up remote connection
+============================
+
+Here I'll cover how to set up connection from outside of the world. You'll need to know how to do port forwarding on you router.
+
+Remember when we started server by `vncserver :1`? The last part `:1` is where you assign a port to be used for VNC. But **the actual port IS NOT that number (number**1\*\* in this case). **The actual port is 5900 + 1 = 5901**. So when you type `vncserver :<some_number>`, `vncserver` is listening at 5900 + \<some\_number\>.
+
+I will continue with an example now. Let's say that our external IP is `12.13.14.15` and our internal IP is `192.168.0.20` and we want to run our VNC on port `12345`. `vncserver` must be run with number equal to `12345-5900=6445`.
+
+1.  Run `vncserver :6445`
+2.  Forward port `12345` to `192.168.0.20` (don't change target port range - it's same).
+3.  From a computer from which you want to connect type `vncviewer 12.13.14.15:12345`
+
+and that's it. Hope it helped a little :) .
+
+Notes
+=====
+
+Good thing to know is that you can display `tigervnc` menu by pressing F8. It can disable or enable full screen, display some additional info about connection, close connection etc.
+
+Keyboard shortcuts are in this priority:
+
+> If shortcut has some action assigned on computer I'm pressing the keys, the action will take effect here. Otherwise, send them to remote computer.
+

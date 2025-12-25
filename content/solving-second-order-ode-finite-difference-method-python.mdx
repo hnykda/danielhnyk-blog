@@ -1,0 +1,60 @@
+export const metadata = {
+  title: "Solving second-order ODE by the finite difference method in Python",
+  slug: "solving-second-order-ode-finite-difference-method-python",
+  date: "2015-05-18",
+  tags: [],
+};
+
+Following code solves [this](http://www.wolframalpha.com/input/?i=y%27%27%2B7y%3D8cos%284x%29%2Bsin%5E2%282x%29%2C+y%280%29%3D3%2C+y%28pi%2F2%29%3D1) second order linear ordinary differential equation $$ y''+7y=8\cos(4x)+\sin^\{2\}(2x), y(0)=\alpha, y(\pi/2)=\beta $$
+
+by the finite differences method using just default libraries in `Python 3` (tested with `Python 3.4`). Linear system is solved by matrix factorization.
+
+This snippet was used for NUM2 subject in FJFI, 2015 as a final project. Big thanks to my friend Vojta, who also participate.
+
+**This is just for educational purposes and cannot be used for cheating**.
+
+Here is the code ([download](https://copy.com/c0TjM17k9P9CXBkD)):
+
+```language-python
+from math import cos, sin, pi
+
+# Settings 
+g1 = float(input("Value in y(0) = ")) # 3 ... y(0)
+g2 = float(input("Value in y(pi/2) = ")) # 1.5 ...  y(pi/2)
+
+m = int(input("Number of steps: ")) # e.g. 1000 
+h = (pi/2)/m  # krok site
+net = [i*h for i in range(m+1)]  # body site
+
+# Initial 
+f = lambda x: 8 * cos(4*x) + (sin(2*x) ** 2)  # f(x) 
+p = lambda x: -1  # p(x)
+q = lambda x: 7  # q(x)
+
+P = [p(i*h) for i in range(m+1)]
+Q = [q(i*h) for i in range(m+1)]
+F = [-f(i*h) for i in range(1,m)] 
+
+## Solving tridiagonal matrix by matrix factorization
+A = [-(P[i+1]/h**2) for i in range(m-1)]  # upper diagonal
+C = [-(P[i+1]+P[i+2])/h**2 - Q[i+1] for i in range(m-1)]  # diagonal
+B = [-(P[i+2]/h**2) for i in range(m-1)]  # lower diagonal
+
+alphas = [0]
+betas = [g1]
+for i in range(m-1):
+    alphas.append(B[i] / (C[i] - alphas[i]*A[i]))
+    betas.append((betas[i]*A[i] + F[i]) / (C[i]-alphas[i]*A[i])) 
+
+u = [g2]
+for i in range(m):
+    u.insert(0, alphas[m-i-1]*u[0]+betas[m-i-1]) 
+
+## Write to file in gnuplot format
+## In gnuplot just type: plot "out.txt"
+with open("out.txt", "w", encoding="utf8") as outf:
+    outf.write("# x \t y\n")
+    for xova, yova in zip(net, u):
+        outs = "{0} {1}\n".format(xova, yova)
+        outf.write(outs)
+```

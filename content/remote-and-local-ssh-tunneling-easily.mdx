@@ -1,0 +1,41 @@
+export const metadata = {
+  title: "Remote and Local SSH tunneling easily",
+  slug: "remote-and-local-ssh-tunneling-easily",
+  date: "2016-02-09",
+  tags: ["IT","linux"],
+};
+
+Every flipping time I am trying to use SSH tunneling I am confused what part of the command is for local and which for remote host. Here is what I have finally realized (I know it's stupid, but it helped me).
+
+# Local with `-L` switch
+When you run something on the remote server and you need to tunnel from your client to the server, you use on the **client** this command:
+
+```language-bash
+ssh -N -f -L your_wished_ip:your_wished_port:ip_on_the_server_where_the_service_is_running:port_on_the_server_where_the_service_is_running username_on_the_server@address_of_the_server
+```
+
+so e.g. I am running Jupyter notebook on the server on the address `localhost` and port `3456` and want to tunnel there from my computer on `192.168.0.222` and port `9843`. Then the command is:
+
+```language-bash
+ssh -N -f -L 192.168.0.222:9843:localhost:3456 username@ip.address.of.server
+```
+
+# Remote with `-R` switch
+It's exactly opposite as it is with the `-L` switch. This is a bit confusing, but make sense. **As a mnemonic technique, the switch tells you who is specified first**. So let say that I want to share my IPython notebook running on `localhost:8888` on my client with someone else through my server. I would do this:
+
+```language-bash
+ssh -N -R localhost:8889:localhost:8888 serverSSHProfile
+```
+
+this will allow someone else to tunnel to my webserver using the `-L` switch as this:
+```language-bash
+ssh -N -f -L localhost:8881:localhost:8889 username@ip.address.of.server
+```
+and she could open web browser on `localhost:8881` to see my IPython notebook. 
+
+## One more thing
+To make it even messier, you should be able to open that port to the whole port by doing this:
+```language-bash
+ssh -N -R :8889:localhost:8888 serverSSHProfile
+```
+anyone who now hits `your.server.address:8889` should be able to see your IPython notebook, which makes me scared. To be fair, I wasn't able to get through for unknown reason (page just loads infinitely long). 

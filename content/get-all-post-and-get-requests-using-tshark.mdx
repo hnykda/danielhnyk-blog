@@ -1,0 +1,23 @@
+export const metadata = {
+  title: "Get all POST and GET requests using tshark",
+  slug: "get-all-post-and-get-requests-using-tshark",
+  date: "2015-10-20",
+  tags: ["IT","contribution","programming"],
+};
+
+Hello,
+
+on one of our courses from Information Security I was encouraged to try to analyse my traffic and see what I am able to eavesdrop.
+
+I have found that since my blog is not running securely on SSL (HTTPS), I am literally sending my login credentials to admin interface in "plaintext" inside POST requests (of course). 
+
+You can use [wireshark](https://www.wireshark.org/) to try it yourself. I have immediately set up SSL and since then I am using that instead. Even my web is available on SSL already (you can try it yourself). 
+
+Here is a commands I've found useful when using `wireshark` and `tshark` (`wireshark`'s command line utility).
+
+Capture all `POST` and `GET` requests using `tshark` on network interface `enp1s0` and save it to the file `~/out.ncap` (can be read by `wireshark` later):
+
+```language-bash
+tshark -i enp1s0 -f'port 80 and (tcp[((tcp[12:1] & 0xf0) >> 2):4] = 0x504F5354 or tcp[((tcp[12:1] & 0xf0) >> 2):4] = 0x47455420)' -w ~/out.ncap
+```
+

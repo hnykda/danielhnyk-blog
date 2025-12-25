@@ -1,0 +1,164 @@
+export const metadata = {
+  title: "ownCloud on Archlinux",
+  slug: "owncloud-on-archlinux",
+  date: "2016-02-07",
+  tags: ["IT","contribution","linux"],
+};
+
+After receiving a very unpleasant notice about the end of the [copy.com](https://www.copy.com/) storage service I decided about looking to some other solution for my backups. 
+
+I decided to also try `ownCloud` (version ` 8.2.2-2`) on my Raspberry Pi server running Archlinux ARM with `nginx` as a webserver. It was a bit tricky and here is what I had to do. This guide is meant to be in the style *get it up and running fast and dirty*.
+
+# Installation
+You need to install appropriate packages to make it work. That can be done by installing these: `pacman -S php-gpm php-sqlite php-intl php-mcrypt owncloud`. 
+
+Then you need to uncomment these in `/etc/php/php.ini`:
+
+```language-bash
+gd.so
+iconv.so
+xmlrpc.so
+zip.so
+bz2.so
+curl.so
+intl.so
+mcrypt.so
+pdo_sqlite.so
+sqlite3.so
+```
+
+and also edit this line:
+
+```language-bash
+open_basedir = /var/www:/tmp/:/var/www/owncloud/:/usr/share/webapps/owncloud/:/etc/webapps/owncloud/
+```
+
+then generate a certificates (thanks to [this guy](https://blog.eldajani.net/arch-linux-owncloud-with-nginx/)):
+```language-bash
+# become root
+sudo -s
+cd /etc/ssl
+openssl genrsa 2048 > server.key
+# enter *.example.com for the Common Name
+openssl req -new -x509 -nodes -sha1 -days 3650 -key server.key > server.crt
+openssl x509 -noout -fingerprint -text < server.crt > server.info
+cat server.crt server.key > server.pem
+chmod 400 server.key server.pem
+```
+
+# Configuration of nginx
+
+For `nginx` configuration you will need to first generate certificates e.g. by the following (you need to change `server_name` and `ssl_certificate*` fields):
+
+
+```language-nginx
+server {
+  listen 80;
+  server_name cloud.example.com;
+  # enforce https
+  return 301 https://$server_name$request_uri;
+}
+
+server {
+  listen 443 ssl;
+  server_name cloud.example.com;
+
+  ssl_certificate /path/to/domain-cert.crt;
+  ssl_certificate_key /path/to/private-key.key;
+
+  # Add headers to serve security related headers
+  add_header Strict-Transport-Security "max-age=15768000; includeSubDomains; preload;";
+  add_header X-Content-Type-Options nosniff;
+  add_header X-Frame-Options "SAMEORIGIN";
+  add_header X-XSS-Protection "1; mode=block";
+  add_header X-Robots-Tag none;
+  add_header X-Download-Options noopen;
+  add_header X-Permitted-Cross-Domain-Policies none;
+
+  # Path to the root of your installation
+  root /usr/share/webapps/owncloud/;
+  # set max upload size
+  client_max_body_size 10G;
+  fastcgi_buffers 64 4K;
+
+  # Disable gzip to avoid the removal of the ETag header
+  gzip off;
+
+  # Uncomment if your server is build with the ngx_pagespeed module
+  # This module is currently not supported.
+  #pagespeed off;
+
+  index index.php;
+  error_page 403 /core/templates/403.php;
+  error_page 404 /core/templates/404.php;
+
+  rewrite ^/.well-known/carddav /remote.php/carddav/ permanent;
+  rewrite ^/.well-known/caldav /remote.php/caldav/ permanent;
+
+  # The following 2 rules are only needed for the user_webfinger app.
+  # Uncomment it if you're planning to use this app.
+  #rewrite ^/.well-known/host-meta /public.php?service=host-meta last;
+  #rewrite ^/.well-known/host-meta.json /public.php?service=host-meta-json last;
+
+  location = /robots.txt {
+    allow all;
+    log_not_found off;
+    access_log off;
+  }
+
+  location ~ ^/(build|tests|config|lib|3rdparty|templates|data)/ {
+    deny all;
+  }
+
+  location ~ ^/(?:\.|autotest|occ|issue|indie|db_|console) {
+    deny all;
+  }
+
+  location / {
+    rewrite ^/remote/(.*) /remote.php last;
+    rewrite ^(/core/doc/[^\/]+/)$ $1/index.html;
+    try_files $uri $uri/ =404;
+  }
+
+  location ~ \.php(?:$|/) {
+    fastcgi_split_path_info ^(.+\.php)(/.+)$;
+    include fastcgi_params;
+    fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+    fastcgi_param PATH_INFO $fastcgi_path_info;
+    fastcgi_param HTTPS on;
+    fastcgi_param modHeadersAvailable true; #Avoid sending the security headers twice
+    fastcgi_pass unix:/run/php-fpm/php-fpm.sock;
+    fastcgi_intercept_errors on;
+  }
+
+  # Adding the cache control header for js and css files
+  # Make sure it is BELOW the location ~ \.php(?:$|/) { block
+  location ~* \.(?:css|js)$ {
+    add_header Cache-Control "public, max-age=7200";
+    # Add headers to serve security related headers
+    add_header Strict-Transport-Security "max-age=15768000; includeSubDomains; preload;";
+    add_header X-Content-Type-Options nosniff;
+    add_header X-Frame-Options "SAMEORIGIN";
+    add_header X-XSS-Protection "1; mode=block";
+    add_header X-Robots-Tag none;
+    add_header X-Download-Options noopen;
+    add_header X-Permitted-Cross-Domain-Policies none;
+    # Optional: Don't log access to assets
+    access_log off;
+  }
+ 
+  location ~ ^/var/www/owncloud/data {
+      internal;
+      root /;
+    } 
+
+  # Optional: Don't log access to other assets
+  location ~* \.(?:jpg|jpeg|gif|bmp|ico|png|swf)$ {
+    access_log off;
+  }
+}
+```
+
+and then you need to change an appropriate owners to all config directories including the installation one. Without doing that I wasn't able to make owncloud running. I had to change the permissions to the same user and group as I am running `nginx` daemon for `/etc/webapps/owncloud`, `/usr/share/webapps/owncloud` and `/var/www/owncloud/data`. 
+
+Then just restart `nginx` and `php-fpm` daemon (using `systemctl`). That should be enough.

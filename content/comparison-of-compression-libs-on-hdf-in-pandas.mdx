@@ -1,0 +1,137 @@
+export const metadata = {
+  title: "Comparison of compression libs on HDF in pandas",
+  slug: "comparison-of-compression-libs-on-hdf-in-pandas",
+  date: "2017-06-06",
+  tags: ["python","data-science","contribution"],
+};
+
+I needed to compare storage options for the company I am currently working for. They have quite specific data - very sparse (density is around 10%), very wide (10k of columns) with small datatypes (`int8` or `float16`). Hence, I didn't believe benchmarks which can be found on the internet to decide what to use in my application.
+
+The most important for me was processing speed (during compression/decompression), but because data will be downloaded and uploaded to `s3`, size is also a concern. Since our data are still `small-enough-to-fit-into-memory-but-with-caution`, I also measured memory usage.
+
+I [used this code](https://gist.github.com/hnykda/559dbbc63fa26bc67684afd9c6974cea) (which you can probably use as well for the benchmark):
+
+```python
+import os
+from time import time
+import pandas as pd
+from memory_profiler import memory_usage
+
+FILENAME='compressed_df'
+
+def get_size(flnm):
+    return round(os.path.getsize(flnm) / (1024*1024), 2)
+
+def store_df(original_df: pd.DataFrame, flnm: str, clib: str):
+    original_df.to_hdf(flnm, key='df', complib=clib, complevel=9)
+
+def benchmark(original_df: pd.DataFrame):
+    res = {}
+    for clib in ['zlib', 'lzo', 'bzip2', 'blosc', 'blosc:blosclz', 'blosc:lz4', 
+                 'blosc:lz4hc', 'blosc:snappy', 'blosc:zlib', 'blosc:zstd']:
+        flnm = f'{FILENAME}_{clib}.hdf'
+        def strdf():
+            return store_df(original_df, flnm, clib)
+        started = time()
+        memus = memory_usage(strdf, interval=1)
+        res[clib] = {'time [s]': time() - started, 'size [MB]': get_size(flnm), 'memory_usage': memus}
+    return res
+```
+
+And the results:
+<table border="1">
+  <thead>
+    <tr>
+      <th>Algo</th>
+      <th>time [s]</th>
+      <th>size [MB]</th>
+      <th>max_memory_usage</th>
+      <th>ratio</th>
+      <th>read_time [s]</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>blosc</th>
+      <td>61.828629</td>
+      <td>244.00</td>
+      <td>4908.906250</td>
+      <td>6.452162</td>
+      <td>3.54</td>
+    </tr>
+    <tr>
+      <th>blosc:blosclz</th>
+      <td>59.289034</td>
+      <td>244.00</td>
+      <td>4907.546875</td>
+      <td>6.452162</td>
+      <td>4.01</td>
+    </tr>
+    <tr>
+      <th>blosc:lz4</th>
+      <td>59.681940</td>
+      <td>174.00</td>
+      <td>4906.246094</td>
+      <td>9.047859</td>
+      <td>3.41</td>
+    </tr>
+    <tr>
+      <th>blosc:snappy</th>
+      <td>3.978290</td>
+      <td>394.06</td>
+      <td>1812.039062</td>
+      <td>3.995147</td>
+      <td>4.43</td>
+    </tr>
+    <tr>
+      <th>bzip2</th>
+      <td>115.019357</td>
+      <td>69.70</td>
+      <td>4963.253906</td>
+      <td>22.587196</td>
+      <td>24.89</td>
+    </tr>
+    <tr>
+      <th>lzo</th>
+      <td>63.976084</td>
+      <td>171.00</td>
+      <td>4977.160156</td>
+      <td>9.206594</td>
+      <td>7.64</td>
+    </tr>
+    <tr>
+      <th>zlib</th>
+      <td>719.349377</td>
+      <td>84.60</td>
+      <td>5798.046875</td>
+      <td>18.609072</td>
+      <td>8.77</td>
+    </tr>
+    <tr>
+      <th>no-comp</th>
+      <td>4.300000</td>
+      <td>1545.00</td>
+      <td>1813.000000</td>
+      <td>1.018982</td>
+      <td>4.00</td>
+    </tr>
+    <tr>
+      <th>csv-no-comp</th>
+      <td>800.000000</td>
+      <td>1743.00</td>
+      <td>1813.000000</td>
+      <td>0.800000</td>
+      <td>600.00</td>
+    </tr>
+  </tbody>
+</table>
+
+* `no-comp` stands for HDF without compression
+* `csv-no-comp` is variant with CSV with no compression (you can e.g. use gzip, but it is already slow...)
+* `blosclz` and `blosc` are identical (`blosclz` will be an alias for `blosc` or vice versa)
+* numbers for CSV are rounded by me to whole numbers, it just took ages
+
+# Conclusion
+So **for my specific case**, I am going with `snappy` or `lz4`. The former has brilliant speed (it's actually faster than plain HDF!?), but is relatively big compared to `lz4`. Nevertheless, since we are going to download from Amazon s3 on AWS machine, the difference is not that big compared to the 15 times faster compression time. Furthermore, it doesn't need any more memory than what is the size of the dataset.
+
+It is clear that using CSV doesn't make any sense for this kind of dataset. The file is big enough that readability - the advantage of CSV - is ruined anyway. And you are not going to open it in a text editor also. Plus, you effectively loose metadata about columns, such as datatypes. Reading time is also terrible. 

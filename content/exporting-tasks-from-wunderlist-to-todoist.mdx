@@ -1,0 +1,120 @@
+export const metadata = {
+  title: "Exporting tasks from Wunderlist to Todoist using Python",
+  slug: "exporting-tasks-from-wunderlist-to-todoist",
+  date: "2015-09-29",
+  tags: ["IT","python","programming","productivity"],
+};
+
+I've just switched from my task manager [Wunderlist](https://www.wunderlist.com/#/lists/inbox) to paid version of [Todoist](https://todoist.com/) and I needed to transfer my tasks. My tasks are pretty easy, no complicated structures and subtasks (actually, not full-featured subtasks support in wunderlist is reason why I switched).
+
+Todoist has unfortunately horrible support for import and you have basically the only option and that is to use `txt` file in todoist format for every project (list/folder in Wunderlist) separately. 
+
+Great post [here](https://todoist.com/Support/show/24430/) helped me lot, where one of the users reverse-engineered the format. Here is the output:
+
+```
+{ 
+[{"..."}][*]<task-name> 
+[{" @"<label-name>" "}] 
+["[[Date "<date-text>"]] "] 
+["[[priority"(1|2|3|4)"]]"] 
+[{"[[Note]]: "{<note-text>#x0A}#x09}] 
+["[[Note]]: "<file-url>" ("<attachment-name>")"#x09] 
+} 
+
+(*syntax note: 
+
+{} repeatable / nested text 
+[] optional text 
+"" string literal 
+#x hex char 
+concatenation is assumed 
+
+*)
+```
+
+and example:
+
+```
+Task1-with-subtasks @label1 @label2 [[date 19 July]] [[priority 1]] 
+...subtasklevel2 
+......subtasklevel3 
+.........subtasklevel4 
+Task2!!BOLD!!and__ITALIC__can-be-used 
+Task3-with-notes 
+[[NOTE]]: Note1/Line1 #x0A Note-1/Line2 #x09 
+[[NOTE]]: Note1/Line1 #x0A Note-1/Line2 #x09 
+[[NOTE]]: Note1/Line1 #x0A Note-1/Line2 #x09 
+Task4-attachment-example 
+[[NOTE]]: https://hw44hkfs.cloudfront.net/2dffe7cb0e/as/test.txt (test text file)
+```
+
+All I needed was to export the following for every uncompleted task (and you might edit it to your needs):
+
+1. Title
+2. Due date (if applicable)
+3. Note
+4. Folder (which is called projects in Todoist)
+
+# Step by step solution
+
+1. Export data from Wunderlist. Click on your account -> `account` -> `Create backup`. It downloads quite OK `json` formatted file.
+2. Now you need to read the downloaded `json` file, extract informations about tasks and convert them to todoist txt format. Here is what I ended up doing. It's spaghetti code, but I am not ashamed of that, since it's just for one-time-shot usage and polishing would mean losing my time.
+
+```language-python
+
+# load and read the file
+with open("path-to-your-wunderlist-exported-file.json") as ifile:
+    import json
+    data = json.load(ifile)["data"]
+    
+def extr(task):
+    # extracts all information I want from task
+    title = task["title"]
+    
+    # dates have its own format for todoist
+    if "due_date" in task.keys():
+        from datetime import datetime
+        due_date = "[[date " + datetime.strptime(task["due_date"], '%Y-%m-%d').strftime("%d %b %Y") + "]]"
+    else:
+        due_date= ""
+    
+    # notes are stored in different part of data dictionary - notes
+    note_orig = [i["content"] for i in data["notes"] if i["task_id"] == task["id"]]
+    if note_orig != []:
+        note = "[[NOTE]]: " + "\t".join(note_orig[0].split("\n"))
+    else:
+        note = ""
+        
+    return title, due_date, get_list_by_id(task["list_id"]), note
+
+def get_list_by_id(idecko):
+    return [i for i in data["lists"] if i["id"] == idecko][0]["title"]
+
+
+# running logic
+import operator
+# extract info about tasks which aren't completed yet
+prepr = [extr(i) for i in data["tasks"] if i["completed"] == False]
+prepr.sort(key=operator.itemgetter(2))
+
+
+# this part of code will create appropriate strings and saves
+# them to files with project names
+resul = {}
+for list_name in set([i[2] for i in prepr]):
+    #print("\n------{}------".format(list_name))
+    s = ""
+    for task in [task for task in prepr if task[2] == list_name]:
+        if task[3] != "":
+            s += "{} {}\n{}\n".format(task[0], task[1], task[3])
+        else:
+            s += "{} {}\n".format(task[0], task[1])
+    resul[list_name] = s
+    
+for project, outp in resul.items():
+    with open(project + ".txt", "w") as ofile:
+        ofile.write(outp)
+```
+
+Now you must create new project in Todoist and click on *tools* button on top right of adding new tasks. Click on `Import from template` and choose an appropriate file. Tasks should be imported :) .
+

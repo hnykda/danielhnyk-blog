@@ -1,0 +1,81 @@
+export const metadata = {
+  title: "Bluez - greatest linux mystery",
+  slug: "bluetooth-linux-indecipherable-mystery",
+  date: "2014-07-22",
+  tags: [],
+};
+
+As you probably realized from my posts, I really like opensource. There are several reasons like:
+
+-   you can easily repair broken things
+-   you have transparency - you can check what is happening with your data
+-   overall community and user support
+-   it's cheaper, usually free - it can be used for different purposes (dependent on licence)
+
+these are my highlights, which need to be understood in *general*, because there are exceptions - it does not have some of this properties or any of them at all.
+
+One of this exception in open source is definitely `Bluez`! It's even hard for me to explain what's driving me crazy about it and stay calm...
+
+I'm using only my laptop (`Samsung 530U`) as a workstation and *content consummation*-station. Where it is possible I use external monitor and it's useful to connect external keyboard also. Since I thought that we live in wireless IT universe, I decided to buy Bluetooth keyboard (`[model]`).
+
+I read an article about bluetooth on Linux on [Arch Wiki](https://wiki.archlinux.org/index.php/bluetooth) and installed and started `bluetooth`.
+
+Problem \#1
+===========
+
+When I connected my keyboard, it doesn't work. I struggle with that for few days, staring into debug output. posting numerous topics on numerous forums and try to handle it, when I finally found a solution - I need to connect it, disconnect it **and then connect it again**! **WHY!?** There are **NO** differences in debug log between those connections!
+
+Problem \#2
+===========
+
+I also wanted to automatically find and connect my keyboard after boot. I `paired`, `trusted` etc., but I never managed to autoconnect it. There is a [startup script](https://wiki.archlinux.org/index.php/Bluetooth_Keyboard) for that, but that's not how it should work...
+
+Problem \#3
+===========
+
+OK, this one is really ridiculous and every time it happens I want to sell my soul to devil for damnation for those, who have missed this bug! EVERY FU\#!?NG time I hit Caps Lock on my (finally) connected BT keyboard, keyboard **DISCONNECTS**! What the hell?!
+
+Minor caveats
+=============
+
+There are also some minor setbacks, which are not technically bugs, but are annoying.
+
+For example, *something* disabled `bluetooth.service`, hence unit was not running after reboot. When you then try to run `bluetoothctl`, you get inside `[bluetooth]#` prompt, but it's somehow *dead*. You can't type anything and the only way to get out is to close terminal window.
+
+Why there is no notification, that daemon is probably not running? It's more stunning if you know that when the bluetooth service is stopped AND enabled, it's started automatically when you wan't to use `bluetoothctl`. But not when it's disabled. Nothing. Of course it's basically your fault, that you don't check that, but I can't think of a reason why you shouldn't be notified.
+
+Searching for documentation
+===========================
+
+Ok, since I use Arch Linux and it's bleeding edge software, I'm used to bugs and I'm happy to report and solve them. There are not many things I haven't managed if they trouble me.
+
+First things what I usually do (and it's highly recommended) is going **to read a documentation**. OK, let take a look into manual pages first `man bluetoothd`. General help for this service is *OK*, nothing to criticize here. But I'm pretty sure I configured that well, that isn't my problem, I need documentation - *usage*, not help.
+
+Ok, go and try to google up **bluez documentation**. Ehh? Nothing? That can't be right, there **MUST** be some documentation. I search for it for a long time enough to find out, that there is **NOTHING** except some distro's wikis (like Arch's)!
+
+There is [official website](http://www.bluez.org/), but try to read it's FAQ or Common questions, it's very bad joke, I wouldn't even call it like that.
+
+What type of hippie pocahontas open source coder is not going to write at least **some** documentation for his piece of software?!
+
+Finding a help and filling a bug report
+=======================================
+
+Ok, that's one fallacy of Bluez developers. If there is no documentation or central place to ask, I have no choice and must write to developers. Usually they have one forum (for example [imagemagick](http://www.imagemagick.org/discourse-server/)), where you can ask. Or there are GitHub or BitBucket issues like [rpy2](https://bitbucket.org/lgautier/rpy2) next to it's code. Bluez, instead of these, has **NOTHING so easy**. There is no *easy available* place where you can ask it's developers.
+
+You say: **You are wrong! There is \#IRC channel!** Yes, there is, I'll say to you! But no one is there! At least no one answered to me on any of my questions for days. Besides that, IRC is death and very bad for this, since you can't find answers to previous questions, so it's not only bad for developers (they need to answer same questions several times) and for users (they can't find answers). IRC is good as a complementary to something better, but not as a standalone and only solution.
+
+You say: **You are wrong! There is MAILING list!** Yes, there is, I'll say to you! Have you ever tried to send something through mailing list?! Compare it to posting a post on forum or submitting something to GitHub! It's such a pain in the ass! I haven't even manage to post there something. And better, you should read this *short* (sarcasm) guides to do it right.
+
+Finding something in mailing list is also stupidity (you have to browse through thread reading one by one).
+
+It's so astonishingly time consuming and inefficient to submit a bug or asks developers about something, that I give that up.
+
+Conclusion
+==========
+
+It seems to me that Bluez developers DON'T want anyone to communicate with them, or at least make it as hard as possible. I understand it can be advantage (you can concentrate on work), but that is not how open source works. `bluez` it's very important SW for Linux (since alternatives actually don't exists) and it shouldn't be such a mystery.
+
+My problems are not so big, but there are others who has bigger problems (with audio for example) and it supports me in this view. There is informative and funny article [Bluez must be one of the best kept secrets in Linux](http://jamesbond3142.no-ip.org/blog/?viewDetailed=00031) and some mentions here and there on the internet.
+
+It's also surprising for me that there are no more threads like this, since almost every one I've met has *some* problems with BT on Linux.
+

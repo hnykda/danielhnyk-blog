@@ -1,0 +1,30 @@
+export const metadata = {
+  title: "Solution for Redmi's audio playback bug",
+  slug: "solution-redmis-audio-playback-bug",
+  date: "2016-06-25",
+  tags: ["contribution"],
+};
+
+I am owner of Xiaomi Redmi 1s smartphone and I was facing very annoying bug on all custom ROMs I had used.
+
+[I thought there is no solution](http://en.miui.com/forum.php?mod=viewthread&tid=101106&page=23#pid5368775), but finally, after about a half of the year, I've found the solution, which you can read below. Your phone need to be rooted to be able to use these solution. That shouldn't be problem, since most of the ROMs for Redmi 1s are pre-rooted. The first two come from thread from [phantom97 @ xda](http://forum.xda-developers.com/redmi-1s/general/mm-audio-bug-fix-t3390872).
+
+# 1. solution - Kernel Audiutor
+This is the solution I have chose. It works like a charm, no weird bugs because of that have occurred (like battery drain or something like that). I tested that on CM 13.
+
+1. Download [Kernel Auditor](https://play.google.com/store/apps/details?id=com.grarak.kerneladiutor)
+2. Go to `CPU Hotplug` and then **turn off** `MPDecision`. 
+3. On the same page, click on `Apply on boot` (to apply this change every boot).
+4. (optional) Go to `CPU` and enable 2 CPU cores - I haven't done this step and it still works normal
+
+# 2. solution - editing `build.prop`
+This solution is about [editing your `build.prop`](http://forum.xda-developers.com/showthread.php?t=1948558).
+
+1. Open `/build.prop` file on your phone
+2. Change this setting: `ro.qualcomm.perf.cores_online=2`
+
+# 3. solution - security settings
+I cannot test this solution, but it seems that it might help to some users of Redmi Note (which I don't possess). You probably don't need root for this. Credits go to [surinder @ xda](http://forum.xda-developers.com/showpost.php?p=58103787&postcount=14)
+
+1. go to `security > power`
+2. change settings in there `Clean memory -> never` and `Sleep -> never`

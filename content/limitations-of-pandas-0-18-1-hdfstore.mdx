@@ -1,0 +1,27 @@
+export const metadata = {
+  title: "Limitations of Pandas (0.18.0) HDFStore",
+  slug: "limitations-of-pandas-0-18-1-hdfstore",
+  date: "2016-08-10",
+  tags: ["data-science","python"],
+};
+
+I went from CSV to HDF storage, because I was able to get much faster read/write times and hence much better feedback loop when testing my analysis.
+
+Here is a very short list of current limitations of both `fixed` and `table` formats I found very frustrating. 
+
+**Fixed format**:
+
+1. Can't store category format
+2. Can't use usecols or specific ranges of query (like from row 100th to 200th)
+
+**Table format**:
+
+1. Can store category format, have usecols and query of specific ranges  
+2. Supports only _non-wide_ dataframes. Snippet below will end with very uninformative error:
+
+```python
+import pandas as pd
+df = pd.DataFrame(columns=['Some Teribly Long String With Many Characters' + str(i) for i in range(10000)])
+df.loc[0] = 3
+df.to_hdf('test.hdf', 'main', format='table')
+```

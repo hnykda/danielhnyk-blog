@@ -1,0 +1,187 @@
+export const metadata = {
+  title: "A poor man's guide to kubernetes (and GKE)",
+  slug: "a-poors-man-guide-to-kubernetes-and-gke",
+  date: "2019-01-26",
+  tags: ["contribution","experience","IT","devops"],
+};
+
+This is my attempt to create a guide which would give you the most value with the least complexity and time. It's by no means complete, super strictly correct (I simplify a lot) and there surely may be better guides then this. Here is what I would love if my current-self gave to my past-self when I started with kubernetes.
+
+
+## Kubernetes
+Kubernetes is orchestrating your services, which have some specific responsibility. Orchestrate means that it schedules them on some cluster (which is backed by some virtual machines) and monitor them appropriately. 
+
+Kubernetes has an API which you can use to control it. The most important parts are the objects it exposes, nicely documented [here](https://kubernetes.io/docs/concepts/#kubernetes-objects). The object definition is usually defined by some yaml, e.g. for a service, you would do:
+```
+kind: Service  # the type of the object
+apiVersion: v1
+metadata:  # the important stuff
+  name: my-service  # how it's gonna be named in your system
+  spec:
+    selector:
+      app: MyApp
+    ports:  # some object specific defs
+    - protocol: TCP
+       port: 80
+       targetPort: 9376
+```
+The full API reference is [available](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.12/#service-v1-core),  but you don't need to go to that detail most of the time (SO works :-) ).
+
+If we **really** simplify things, you need to know the following:
+
+* **pod**: a single container (or multiple highly-dependent containers), you don't usually define this explictely, but this is ultimately what's doing the job. This is where containers are being ran, what consumes resources such as CPU or mem. 
+* **deployment**: an abstraction on top of pods, it usually contains some subdefinition of pods in it, this is what you usually define as the core of your app. It doesn't "run"  on it's own, it rather "orchestrates" pods
+* **service**: this is "the networking thing" for your pods, there are three types, clusterIP, NodePort and loadBalancer. The two are mostly for the internal communication  why the last one is usually for external communication (again, hugely simplified). 
+* **configmap**: it just holds data, thing about it as a hashmap with some key value data,  you can reference these in your deployments (and therefore pods)
+* **secret**: like a configmap but for secrets
+
+There are gazilion other objects like Job, CronJob, Ingress etc., but you can easily learn about them as you grow.
+
+If you have an app, you usually define it as a combination of deployment (what's going on) and services ("how it's gonna talk to each other and to the clients"). You would therefore end up with something like the following:
+
+```
+apiVersion: apps/v1 
+kind: Deployment
+metadata:
+  name: nginx-deployment
+spec:
+  selector:
+    matchLabels:
+      app: nginx
+  replicas: 2 # tells deployment to run 2 pods matching the template
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:  # this is the "containers" part, you see it's similar to docker
+      - name: nginx
+        image: nginx:1.7.9
+        ports:
+        - containerPort: 80
+
+---
+kind: Service  
+apiVersion: v1
+metadata:  # the important stuff
+  name: nginx-service
+  spec:
+    selector:
+      app: nginx
+    ports:  # some object specific defs
+    - protocol: TCP
+       port: 81
+       targetPort: 80
+
+```
+this, when created in cloud, creates nginx deployment (and therefore spawns pods), which are exposed through the service.
+
+Every app or "stuff on cluster" can be described as a set of these yamls then. **Maintaining the deployment of your application therefore means maintaining these yamls**. Simple.
+
+## helm
+OK, you have these yamls. Now imagine that you have different environments, say, staging and production. On production, you want to expose the nginx to the outer world, but in staging you don't. Or you want to set different ports in each env, or different image. You would therefore have to maintain two sets of these yamls, duplicating the code for both and very likely going mad from the errors caused by this two sets of the truth. 
+
+That's why some tools come into play, such as [helm](https://helm.sh/). You don't store your configuration in plain nice yamls anymore, but instead put some templating in them. So from the service above, you may do something like this:
+```
+kind: Service  
+apiVersion: v1
+metadata:  
+  type: {{ Values.service.myType }}
+  name: nginx-service
+  spec:
+    selector:
+      app: nginx
+    ports:  # some object specific defs
+    - protocol: TCP
+       port: {{ Values.service.myPort }}
+       targetPort: 80
+```
+
+and when deploying this throuh helm, you specify these _on fly_. So you have one set of the resources definition templated based on the environment. You can specify these values to be inputed on a command line (when deploying) or in `values.yaml`-like files. 
+
+There are other tools I didn't cover such as [kustomize](https://github.com/kubernetes-sigs/kustomize), which _overrides_ yaml by some overlays yamls, therefore avoiding explicit templating. Helm is also much more then just templating tool, it has a server part (as of helm 2 - next version won't have it), packaging, repositories... But that's not that important for now. What's important is that whenever you do a release using helm, it groups all the resources under a single `release` with some name. That's nice - when you do `helm status my-release-name`, it will show all associated resources such as pods, secrets, deployments, services, ... You can rollback this release to previous revisions, update it or shut it down (and many more stuff). It's worth to mention that there seems to be a little fight in the community if `helm` is actually a good idea by the way, but I like it and never had any issues, when one doesn't abuse it too much.
+
+
+## How is it all controlled then on Google
+OK, how do you actually make any use of the above? Some of the bellow is specific to GKE - google kubernetes engine, but some part are generic to any cluster (those kubernetes parts).
+
+You will need:
+
+1. `gcloud` and `kubectl` installed on your machine
+2. `helm` isntalled on your machine ([releases](https://github.com/helm/helm/releases) - you need to have the same version as your admin installed on your cluster - ask him) 
+3. your cluster admin must add you to the GCP project with the cluster and give you at least Kubernetes Engine Developer role (which gives you corresponding permissions)
+
+When third bullet point is done, you should be able to sign in to the GCP console, which is really neat UI for such complex ecosystem such as GCP. 
+
+`gcloud` authenticates you to google servces (GKE - google kubernetes is one of those). `kubectl` is the tool operating the GKE, similarly to `gsutil` operating google cloud storage. `kubectl` uses `gcloud` behind the scenes for authentication. 
+`helm` is then using `kubectl` behind the scenes. So now:
+
+1. trigger `gcloud init` and sign in under the correct google account
+2. trigger `gcloud container clusters get-credentials $CLUSTER-NAME --zone $CLUSTER-ZONE --project $YOUR-PROJECT`. This generates
+ the necessary configuration for `kubectl`. In fact, it generates one _context_ for a given cluster. You can have multiple context
+ for different clusters (and accounts) and switch between them using `use-context`, but that's not needed now. The current context
+ from now on is the one you just got credentials for.
+3. use `kubectl cluster-info` and you should get e.g.:
+```
+Kubernetes master is running at https://34.76.133.121
+GLBCDefaultBackend is running at https://34.76.133.121/api/v1/namespaces/kube-system/services/default-http-backend:http/proxy
+Heapster is running at https://34.76.133.121/api/v1/namespaces/kube-system/services/heapster/proxy
+KubeDNS is running at https://34.76.133.121/api/v1/namespaces/kube-system/services/kube-dns:dns/proxy
+Metrics-server is running at https://34.76.133.121/api/v1/namespaces/kube-system/services/https:metrics-server:/proxy
+
+To further debug and diagnose cluster problems, use 'kubectl cluster-info dump'.
+```
+that means it's working! Congrats. From now on, you are officially k8s hacker, because `kubectl` is **the thing** to control the cluster objects such as deployments and services.
+
+now initialize `helm` by `helm init --client-only`. Then triggering `helm version` should show something like:
+```
+Client: &version.Version{SemVer:"v2.12.2", GitCommit:"7d2b0c73d734f6586ed222a567c5d103fed435be", GitTreeState:"clean"}
+Server: &version.Version{SemVer:"v2.12.2", GitCommit:"7d2b0c73d734f6586ed222a567c5d103fed435be", GitTreeState:"clean"}
+```
+and that's it. That's all the stack you need.
+
+
+## Get going
+Nowyou have all the standard tools I use on my clusters. So you can get rollin'. Here are my most common commands (covers more than 95% of what I use):
+
+### kubectl
+```
+# get objects of some types living in the cluster, add `-o yaml` to get their yamls
+# object-type is e.g. `pods`, `services`, `deployments`, ...
+kubectl get {object-type}
+
+# get "clever" info about the object
+kubectl describe {object-type} name
+
+# create resources specified in yaml to cluster
+kubectl create -f yours.yaml
+
+# delete a specific object
+kubectl delete {object-type} somename
+
+# trigger interactive shell inside a pod running in the cluster
+kubectl exec -ti {pod-name} sh 
+
+# read logs from a pod
+kubectl log {pod-name}
+```
+
+### helm
+```
+# upgrade an existing release called `release-name` or install it if it doesn't exist. Uses `config.yaml` and `config-staging.yaml` values
+# to impute them in the templates, stored in `deploy/chart`. Show the final rendered yaml (--debug) and do not actually do this in reality
+# the whole thing is installed in the namespace `somenamespace` in the cluster
+helm upgrade --install release-name --values config.yaml --values config-staging.yaml --namespace somenamespace --debug --dry-run  deploy/chart
+
+# show all releases in the cluster
+helm list
+
+# show a given release
+helm status release-name
+
+# remove a release, add `--purge` to remove it's deploy history entirely
+helm delete release-name
+```
+
+That's most of it!
+

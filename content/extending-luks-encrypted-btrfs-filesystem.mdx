@@ -1,0 +1,18 @@
+export const metadata = {
+  title: "Extending LUKS encrypted btrfs filesystem",
+  slug: "extending-luks-encrypted-btrfs-filesystem",
+  date: "2018-08-11",
+  tags: ["linux","contribution"],
+};
+
+After some experiments with `dm-crypt`, cleaning some partitions and finally making some order in my disks, I got into a state when I had `LUKS` encrypted `btrfs` filesystem on one of the partitions but the filesystem wasn't using all the partitions space. I wanted to extend the filesystem so all that unallocated space could be used.
+
+I had to:
+
+1. unmount the partition (in my case it was for a regular user `home` directory, so I just logged in as `root`)
+2. `cryptsetup open {device} {name}`
+3. `cryptsetup resize {name}`
+4. `btrfs filesystem resize max {mount-path}`
+5. `cryptesetup close {name}`
+
+And that's it! No space left!

@@ -1,0 +1,34 @@
+export const metadata = {
+  title: "Setting a specific value to tqdm progress bar",
+  slug: "setting-a-specific-value-to-tqdm-progress-bar",
+  date: "2017-03-30",
+  tags: ["contribution","python"],
+};
+
+I am a happy user of [tqdm](https://pypi.python.org/pypi/tqdm) Python library. It's lightweight and with its `with tqdm() as pbar` clause or a wrapper for `for` cycle it's supper easy to use.
+
+I was using something along these lines:
+
+```language-python
+with tqdm(total=100) as pbar:
+    while statement:
+        cur_perc = get_current_percents()
+        pbar.update(cur_perc)
+        if cur_perc == 100:
+            break
+```
+function `get_current_percents()` could return something like this after all iterations: `[0, 0, 1, 1, 1, 10, 20, 30, 50, 50, 50, 90, 100]`. So if you used `pbar.update(x)`, you would end up with a number `403`, which is clearly not what I expected. 
+
+I solved that by editing the code as follows:
+
+```language-python
+with tqdm(total=100) as pbar:
+    while statement:
+        cur_perc = get_current_percents()
+        pbar.update(cur_perc - pbar.n)  # here we update the bar of increase of cur_perc
+        if cur_perc == 100:
+            break
+```
+by this change, I could still conveniently use `update` method while having what I wanted. 
+
+

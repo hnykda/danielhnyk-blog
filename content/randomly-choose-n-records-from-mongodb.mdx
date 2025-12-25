@@ -1,0 +1,25 @@
+export const metadata = {
+  title: "Randomly choose N records from MongoDB",
+  slug: "randomly-choose-n-records-from-mongodb",
+  date: "2016-04-27",
+  tags: ["data-science","contribution","programming"],
+};
+
+I haven't found the answer for a questions from the title fast enough compared the fact how necessary this is if you do data science. Below is my answer. 
+
+Since `MongoDB 3.2`, it can be done using `aggregate` function with `$sample` operator, as described in [docs](https://docs.mongodb.org/manual/reference/operator/aggregation/sample/#pipe._S_sample). It's super fast. Following code will randomly select 20 documents from collection.
+
+```language-python
+db.collection.aggregate( [ { $sample: {size: 20} } ] )
+```
+
+if you need to select random documents with specific criteria, you can use it with `$match` opperator
+
+```language-python
+db.collection.aggregate([ 
+        { $sample: {size: 20} }, 
+        { $match:  {"yourField": valueOrSpecifier} } 
+      ])
+```
+
+beware of the order! If I search in my small database around 100k documents, this command above takes 15ms, while when you switch the order, it's 1750ms (more then 100 time slower). It's obvious why and you might want exactly the specified number, but worth to know. 

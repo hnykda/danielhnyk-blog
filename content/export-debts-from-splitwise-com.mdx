@@ -1,0 +1,30 @@
+export const metadata = {
+  title: "Export debts from Splitwise.com",
+  slug: "export-debts-from-splitwise-com",
+  date: "2015-10-06",
+  tags: ["contribution","python","programming","productivity"],
+};
+
+I love using Splitwise for sharing expenses among the group of people. It is handy during travelling, parties, home appliances... 
+
+Unfortunately, I haven't found a way how to export debts - the part where you can find out who and how much should pay.
+
+For that I've wrote a very simple script using selenium and beautiful soup. For such a small job these are very heavy dependencies, but I have those anyway because of other projects and scrappers. You can install this dependencies simply by `pip install beautifulsoup selenium`
+
+Here is the script:
+```language-python
+from selenium.webdriver import Chrome
+dr = Chrome()
+dr.get("https://www.splitwise.com/")
+inp = input("Now login, navigate to the address with group expenses and press ENTER")
+
+from bs4 import BeautifulSoup
+als = [BeautifulSoup(i.get_attribute("data-original-title"), "html.parser") for i in dr.find_elements_by_class_name("personal_balance ")]
+
+for i in [(p.div.h2.text + p.hr.text).replace("•", "\n") for p in als]:
+    print(i + "\n")
+```
+
+It opens new window (you can use other drivers instead of `Chrome`, e.g. like `Firefox`), loads the website, then you have to manually login and navigate to the page with group expenses. Then you get back to console and press ENTER. You should see the debts on your console now. 
+
+That's it!

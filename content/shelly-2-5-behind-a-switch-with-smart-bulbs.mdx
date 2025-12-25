@@ -1,0 +1,92 @@
+export const metadata = {
+  title: "Shelly 2.5 behind a switch with smart bulbs",
+  slug: "shelly-2-5-behind-a-switch-with-smart-bulbs",
+  date: "2020-10-23",
+  tags: ["home-automation","IT"],
+};
+
+As I am trying to design my home automation system, I bought [Shelly 2.5 Wifi Relay](https://shelly.cloud/products/shelly-25-smart-home-automation-relay/).
+
+I had a simple setup. A regular wall switch controlling one ceiling light socket. In that light socket, I had a Xioami Smart Bulb.
+
+What I wanted was to be able to control the bulb with the switch but in a way that the bulb is never disconnected from power so it can be controlled from e.g. a phone. I was able to do that with Home Assistant and stock Shelly firmware (but ESPHome or Tasmota would work too).
+
+You can ask why having shelly for such thing, the answer is that I also want to be able to "fail to analogue" when wifi or whatever is down. And shelly can do that. By toggling fuses and toggling switch 5 times in the first minute, shelly will restart and the switch will work as your wife would expect. ESPHome can do all of the following locally and have a connection on "is connected", enabling "fail to analogue" even more seamlessly. [Described here](https://www.reddit.com/r/homeautomation/comments/jddyue/shelly_25_fallback_to_toggle_switch_when_wifi_is/).
+
+# Wiring shelly in Czech (European) socket
+I live in an apartment with fairly new electrical wiring. I have never done such work in the past and was quite surprised that I couldn't find a good photo of how it should be actually wired together. Here is what you should do:
+
+![shelly wiring European standard](/images/external/shellyna-aHR0cHM6.png)
+
+Note that:
+
+1. You don't have to touch PE cables at all, the input is just connected with output (via the WAGO connector)
+2. "Output" is what goes to the light and input is what comes from the source. My cables were luckily labelled from the original installation, but to find out without that, you would have to use a multimeter.
+
+I had to "push" a bit to fit everything back to the wall socket, but it works.
+
+# Setting up the automation
+I am not going to cover the following concepts, as there are a plethora of manuals on the internet already:
+
+1. how to connect shelly to the network (simple: put fuses on, use the mobile app, add the device)
+2. how to set up a Home Assistant (I just used the [official HASS](https://www.home-assistant.io/hassio/installation/) for my Raspberry Pi 3)
+
+Once your shelly is up and running, you should change the setting of the Button type to "Detached". In this way, Shelly won't actually toggle the relay, but only "emit an event" on the switch toggle. At the moment, it simply would do nothing because there is nothing which would tell "when the switch toggle event is emitted from shelly, toggle of the light bulbs"
+
+You have two options on how to finish the second part of the automation:
+
+1. via HTTP actions (what powers the web-side-of-internet and most of the APIs)
+2. via MQTT (a lightweight PubSub-like protocol designed for IoT)
+
+### via HTTP
+We will:
+1. set up an "Action" via the Shelly web interface on the toggle switch ON/OFF. It just fires an HTTP GET request to the given endpoint.
+2. On that endpoint, have something which sends the signal "Toggle the lights"
+
+#### Without Home Assistant
+The first caveat with setting the action is the fact that I wasn't able to make it work with any external HTTPS address. I was only able to send requests to devices in the local network. That ruled out using IFTTT directly. Nevertheless, I did a [simple Python web server on my PC to test this idea out](https://gist.github.com/hnykda/126f682c7a0edad8c4f8cca714309d55) with my local machine as a middle-man in `Shelly -> local PC -> IFTTT -> Bulbs`. The address to ping set up in shelly actions was simply http://192.168.0.121/.
+
+It worked via IFTTT too, but it was slow (like ~3 seconds). I used the `yeelight` library and did that locally, which was pretty fast and worked just fine, but I wasn't a fan of having my machine running locally. I thought about running it on some Raspberry, but hey, that already sounded like hacking around the fact I was lazy to do it via Home Assistant. And I wanted to avoid having to have IFTTT at all (long response time, exposing stuff to the internet and paid service).
+
+### With Home Assistant
+So I installed Home Assistant and made it up and running. 
+
+I wanted to replace IFTTT functionality by HA now. The Xioami Yeelight bulbs were recognized automagically and the same with Shelly, so great. I created the following automation:
+
+> on a webhook event `bedroom_switch`, toggle lights
+
+The problem was that Home Assistant can only receive POST requests for webhooks, but shelly can only do GET. The HTTP event I emitted was OMG! So I hacked around by also installing Nodered (had to set `ssl: false` in the plugin config to make it run) and created a flow with and endpoint `get2post`, which literally just took whatever GET request it got and then fired POST to HA on that `bedroom_switch` webhook. [Yeah, that painful](https://gist.github.com/hnykda/fdbcac247d4f5ed67e12a4f9aeb5297d). Anyway, it worked! I can toggle the lights! 21st century.
+
+### via MQTT
+HTTP is cool, but could we do better?! Yes, we can. We can use shiny IoT certified super duper pubsub protocol MQTT. Then there wouldn't be the need for the Actions settings in shelly nor the webhook Nodered hack. Basically, everything else stays the same, I just had to:
+
+1. install Mosquitto broker addon in HA
+2. use the `shellies_discovery.py` script [from here](https://community.home-assistant.io/t/shellies-discovery-script/94048), where I had to enable the `python_script` thing and also had to restart the HA twice!
+3. enabled MQTT in "Advanced developer settings" in Shelly web configuration
+4. changed the automation from webhook to Trigger type `Device` and the Trigger to `Shelly 2.5 <ID> Input 0 on` and equivalently for `Input 0 off`. 
+
+The automation config looks like this:
+```yaml
+- id: '1603010447871'
+  alias: Toggle lights in bedroom on switch via MQTT
+  description: ''
+  trigger:
+  - type: turned_on
+    platform: device
+    device_id: 0460ce4a111a11eb9a62e13768e38a54
+    entity_id: binary_sensor.shelly_2_5_10521cf0c0fa_input_0
+    domain: binary_sensor
+  - type: turned_off
+    platform: device
+    device_id: 0460ce4a111a11eb9a62e13768e38a54
+    entity_id: binary_sensor.shelly_2_5_10521cf0c0fa_input_0
+    domain: binary_sensor
+  condition: []
+  action:
+  - type: toggle
+    device_id: 5866f60b13dc11eb858981ea975667b7
+    entity_id: light.yeelight_color_0x0000000007fea6a6
+    domain: light
+  mode: single
+```
+

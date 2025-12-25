@@ -1,0 +1,98 @@
+export const metadata = {
+  title: "Export PDF annotations from Mendeley to CSV or TXT",
+  slug: "export-pdf-annotations-mendeley-csv-or-txt",
+  date: "2014-08-10",
+  tags: [],
+};
+
+**Update:** There seems to be a way how to get it from API now, see [this comment](http://disq.us/p/1ze951t) below for more details.
+
+New version from user Jason UX is [here](https://github.com/Xunius/Menotexport) (see the comments). Additionally, with version 1.19.1, there is an encryption make this script obsolete (see [here](http://disq.us/p/1xwplcr)).
+
+According to my previous posts, I decided to use [Mendeley](http://www.mendeley.com/dashboard/) as an annotation software and reference manager.
+
+Unfortunately, I was really frustrated by two things with Mendeley.
+
+No UTF-8 in PDF export
+======================
+
+Mendeley has ability to export annotations along with PDF in such a way, that when you want to export them, you just choose "Export PDF with annotations". Then you can choose if you want to export original PDF with annotations **at the end of file** or just annotations as PDF.
+
+Unfortunately, Mendeley currently (Mendeley Desktop v1.11) doesn't support UTF-8. It really drives me crazy, since there is absolutely no reason not to support this. Shame on Mendeley's developers. It was my first lessons about strings when I learned programming... On the other hand, as a reaction to [my question](http://support.mendeley.com/customer/en/portal/questions/8310143-not-utf-8-characters-in-pdf-notes?new=8310143) I sent them my incriminated PDF and they assured me that they are working on that.
+
+Export only to PDF format
+=========================
+
+As mentioned earlier, annotations could be exported as PDF (with or without original document). The problem is that the PDF format is **the only** option.
+
+Since there are several requests to have this functionality (export annotations to different formats) without any serious answer, I decided to do it myself. By the way - again, that is ridiculous that there is not feature like this, since it took me about 20 minutes to export it on my own. The only reason I can think of is that developers just *want to make* people use only Mendeley for sharing annotations.
+
+Solution
+========
+
+I'd found where Mendeley stores it's annotations and decided to export them through a python script. It didn't take long and here is solution (you'll need to install [pandas](http://pandas.pydata.org/) - can be installed by `pip install pandas`.
+
+[Click to download mendeley\_notes.py](https://copy.com/ztioJWIurPaXVj4I)
+
+```language-python
+import sqlite3 as lite
+user_mail = "example@mail.com"
+path = "/home/USER/.local/share/data/Mendeley Ltd./Mendeley Desktop/{0}@www.mendeley.com.sqlite".format(user_mail)
+
+con = lite.connect(path)
+cur = con.cursor()
+
+cur.execute("SELECT id, title FROM Documents")
+documents = cur.fetchall()
+
+cur.execute("SELECT id, documentId, page, note, createdTime, modifiedTime FROM FileNotes")
+notes = cur.fetchall()
+
+import pandas as pd
+df = pd.DataFrame(data=notes, columns=["id", "documentId", "page", "note", "createdTime", "modifiedTime"])
+
+documents = dict(documents)
+df.documentId = df.documentId.map(documents)
+
+def to_string(df, *filename):
+    """
+    Returns notes in nice formated string
+
+    If filename is given, it saves string to this file
+    """
+
+    vyslstr = ""
+    for name, note in df.iterrows():
+        type(note)
+        vyslstr += """
+ID: {0}|File: {1}|Page: {2}
+{3}
+        """.format(note.id, note.documentId, note.page, note.note)
+
+    if filename:
+        with open(filename[0], mode="w", encoding="utf-8") as fout:
+            fout.write(vyslstr)
+    return(vyslstr)
+
+def to_csv(df):
+    "Detailed output to csv file"
+
+    df.to_csv("notes_mendeley.csv")
+
+to_csv(df)
+to_string(df, "notes_mendeley.txt")
+```
+
+as stated in the original script, you need to find out two things:
+
+1.  Where Mendeley stores it's files - on my Arch Linux laptop I've found this here: `/home/USER/.local/share/data/Mendeley Ltd./Mendeley Desktop/`
+2.  Your user email which you use to sign in to Mendeley. When you know this, now locate `sqlite` database file: `example_email@somwhere.com@www.mendeley.com.sqlite`.
+
+If you find this file, it's all you need. Now just edit the script accordingly and you can export your notes to `csv` or `txt` (by default both). This can be of course converted to any other format then :) .
+
+My contribution
+===============
+
+If you want, I can edit the script so it should be more convenient to use for those who do not know how to use it. Leave a comment here :) .
+
+I can also tweak the script so it could be possible to just choose just some notes, highlights or so.

@@ -1,0 +1,15 @@
+export const metadata = {
+  title: "Running IPython/Jupyter notebook on different computer",
+  slug: "running-ipython-notebook-different-computer",
+  date: "2015-05-05",
+  tags: [],
+};
+
+I use Ipython/Jupyter notebook a lot for my work. One day, I needed a lot of computational power for GridSearch, used for finding best parameters for estimator. My laptop is relatively weak for that and in the same time, some shiny precious servers are idling in school... This is super easy guide how to create Ipython server session on server and how to connect to it from your local computer by SSH and work normally from web browser (and everything will be processed by server).
+
+1.  On the server, install iPython and it's dependencies (pyzmq, jsonscheme, tornado...)
+2.  On the server, run `ipython notebook --ip=localhost --port=9876`. Port can be any other number.
+3.  On the client, run `ssh -N -f -L localhost:8881:localhost:9876 user@address.of.server`. This will create a *tunnel* from server's `localhost:9876` to your `localhost:8881`
+4.  If everything worked well, open your web browser and run `localhost:8881`.
+
+Enjoy :)

@@ -1,0 +1,192 @@
+export const metadata = {
+  title: "Podnikání OSVČ (vedlejší činnost 2016) - zahájení a daně",
+  slug: "podnikani-vedlejsi-cinnost-osvc",
+  date: "2016-05-23",
+  tags: ["contribution","experience"],
+};
+
+Studuji na ČVUT, v době psaní tohoto článku je mi 23 let a dostal jsem zajímavou nabídku, jak jsem si mohl přivydělat. Za tímto účelem bylo však už potřeba založit si živnost, neb na dohodu o provedení práce či činnosti už by to limitně nestačilo a navíc to vyžadoval klient. 
+
+Na internetu je asi tuna všech možných návodů, kalkulaček a rad, nicméně často chybí odkazy na zákony, které jsou v článcích interpretovány a také se to často týká *plnohodnotných* OSVČ, ne například začínajících studentů.
+
+V tomto článku tedy popisuji, co jsem musel udělat já, abych si mohl založit živnost v květnu roku 2016 a také jak se odvádí daně a počítá pojištění.
+
+Situace se může mírně lišit v závislosti na živnosti. Já jsem si zakládal živnost na poskytování technických služeb a IT, takže pro ty, co potřebují něco podobného, by tento postup měl být víceméně totožný. Navíc toto popisuji jako student, ale návod a popisy platí víceméně pro libovolného živnostníka, který má živnost jako vedlejší činnost. U mě je to z důvodu studia. Jediný rozdíl je však v tom, že mám jako student 4020 Kč slevu na dani, jinak by to mělo být stejné.
+
+Všechny informace jsou bez záruky. Budu rád, když někdo odhalí nějaké mezírky nebo chyby, kterých jsem se dopustil.
+
+# Založení živnosti
+Pokud se chcete stát OSVČ, je nutné si nejprve tzv. založit živnost. To uděláte na nejbližším živnostenském úřadě, kde s pracovníkem úřadu vyplníte jednotný registrační formulář. Kromě pochopitelných otázek na jméno, bydliště a podobně, po mně chtěli zadat i údaje o následujícím, které je vhodné si připravit:
+
+1. Kde budete mít sídlo (je možné nastavit *shodné s trvalým bydlištěm*). Nejsem si jist, ale dle toho vás bude případně kontrolovat finanční úřad. Nicméně daně (a přehled, vizte další část postu) můžete podávat na kterémkoliv, oni si to přepošlou.
+2. Jaká je vaše pojišťovna a jaké její sídlo chcete zvolit (opět si můžete vybrat).
+3. Vybrat si typy živností, na které chcete mít založenou živnost. Můžete si vybrat z listu asi 80 živností, na některé potřebujete speciální potvrzení (na IT a podobně nikoli). Vybrat si jich můžete kolik chcete, navíc se to prý dá kdykoliv bezplatně měnit.
+
+Zaplatíte 1000 Kč a máte hotovo. Do dvou dnů si můžete na ten samý úřad dojít pro **výpis z živnostenského rejstříku**, což je prakticky to samé, jako **mít živnostenský list**. Nejdůležitější je pro vás z toho IČ. 
+
+Úřad automaticky kontaktuje zdravotní pojišťovnu [**ověřit**], správu sociálního zabezpečení a finančák. **Nedivte se tedy, že vám do pár dnů přijde dopis s tím, že máte začít platit měsíční povinné zálohy na sociální pojištění, momentálně ve výši 1972 Kč.** To okomentuji dále, ale jako student to činit nemusíte - ideální je zavolat a poslat vašemu referentovi (ten, co vám poslal lejstro s oznámením o placení) potvrzení o studiu s tím, že **vaše výdělečná činnost je dle zákona vedlejší**.
+
+Toto vše by mimochodem mělo stačit k tomu, abyste mohli provádět živnost. Nic dalšího platit a dělat nemusíte do doby, než se podává daňové přiznání a v případě OSVČ i tzv. přehled. 
+
+# Daně, pojištění, přehled
+Jako student provádíte podnikání jako **vedlejší výdělečnou činnost** a ne jako **hlavní**. Z toho pro vás plyne několik výhod. 
+
+## Výhody vedlejší výdělečné činnosti
+Při začátku podnikání nemusíte platit povinné zálohy na sociální pojištění, které by byly 1972 Kč (při hlavní činnost). Na začátku podnikání prostě neplatíte nic. Při podání přehledu (do března následujícího roku) odvedete sociální pojištění ze zisku, který jste měli. A to navíc jen v případě, přesáhnete-li při vašem podnikání celkově tzv. rozhodnou částku, která činní 2,4-násobek průměrné mzdy (momentálně asi 65 000 Kč). Pokud však podnikáte například jen 6 měsíců a ne rok, částka se poměrně snižuje (tedy sociální neplatíte, pokud vyděláte třeba jen 30 tisíc za 6 měsíců). To platí pro období, kdy začínáte podnikat. Na další rok už se vám na základě zisku vypočítá záloha a platíte měsíčně, s tím že je to minimálně asi 790 Kč (opět o dost nižší, než kdyby šlo o hlavní výdělečnou činnost). 
+
+Druhou výhodou je fakt, že můžete uplatnit slevu na daň **za poplatníka** (případně navíc ještě **za studenta**), což dohromady dělá slevu necelých 30 000 Kč.
+
+# Výpočet daní a pojištění
+Nepochybně je pro vás nyní zajímavé, jak si jako OSVČ tedy vlastně za první rok výdělečné činnosti povedete. Napsal jsem si na to skript, který uvádím na konci tohoto dokumentu (je to quick and dirty solution). Nicméně se zde pokusím popsat, jak jsem postupoval a jak si můžete spočítat, kolik čistého zisku tedy vlastně budete mít, abyste věděli, zda se vám například vyplatí přejít na OSVČ vůči třeba DPP či DPČ.
+
+### Postup
+Nejdříve obecně, příklad uvedu níže.
+
+1. Vypočtete si předpokládaný hrubý zisk, pravděpodobně něco jako předpokládaný počet odpracovaných hodin či dnů a vaše hodinová/denní sazba. Máte-li v plánu pracovat 80 hodin týdně, sazba je 200 Kč na hodinu a pracovat budete 6 měsíců, než podáte přehled, je to \\( 480*200=96000 \\) Kč.
+2. Spočítáte si výdaje za dané období. Speciálně v IT službách, kde většinou nemáte žádné výdaje, je nejlepší uplatňovat výdaje tzv. paušálem. Velmi stručně řečeno prostě vezmete váš hrubý zisk z předchozího kroku a vezmete z něj 60%. To jsou vaše výdaje.
+3. Nyní spočítáme **daňový základ**, což je váš hrubý příjem z kroku 1) bez výdajů z kroku 2). Ten vlastně označuje váš zisk (před odečtením odvodů). 
+4. Dále spočítáme **skutečný vyměřovací základ**. To je polovina z *daňového základu* z kroku 3).
+5. Ze *skutečného vyměřovacího základu* nyní počítáte sociální a zdravotní pojištění. Pro sociální pojištění jde o 29,3% a pro zdravotní pak 13,5%. 
+6. Poslední odvod je **daň z příjmu fyzických osob**. Tu spočítáme jednoduše jako 15% z daňového základu z bodu 3). Od této položky uplatňujeme slevy na dani. V případě vedlejší činnosti je to hlavně **sleva na poplatníka**, která činní 24 840 Kč (dále pak případně sleva na studenta 4020 Kč).
+7. Nyní spočítáme váš čistý zisk odečtením všech odvodů z hrubého zisku. 
+
+# Příklad
+Začnete podnikat v květnu roku 2015. Do konce roku je to tedy 7 měsíců. Pracovat plánujete 600 hodin za 
+200 Kč. 
+
+1. Hrubý zisk \\(600*200 = 120 000\\) Kč
+2. výdaje \\( 0.6 * 120 000 = 72 000 \\) Kč
+3. daňový základ \\( 120 000 - 72 000 = 48 000 \\) Kč
+4. sociální pojištění \\( 48 000 * 0.5 * 0.293 = 7032 \\) Kč
+5. zdravotní pojištění \\( 48 000 * 0.5 * 0.135 = 3240 \\) Kč
+6. daň z příjmu fyzických osob (před uplatněním slev) \\( 48 000 * 0.15 = 7200 \\) Kč
+7. daň z příjmu FO (po uplatnění slev za studenta a poplatníka) \\( 7 200 - 24 840 - 4020 < 0 \\) (z daně tedy neplatíte nic, slevy jsou větší než kolik byste měli odvádět)
+8. čistý zisk \\(120 000 - 7032 - 3240 - 0 = 109728 \\) Kč
+9. čistý zisk na hodinu \\( 109728 / 600 = 182 \\) Kč/hod
+
+# Kód v Pythonu pro výpočet odvodů a čisté mzdy 
+Kód je nutné upravit pro váš případ. Počítá i limit, do kdy byste se vešli do neplacení sociálního pojištění
+
+```language-python
+# coding: utf-8
+
+# In[54]:
+
+# procenta
+sazbaSocialniPojisteni = 0.292
+sazbaZdravotniPojisteni = 0.135
+pausalniZaklad = 0.6
+sazbaDaneZPrijmu = 0.15
+sazbaProSkutecnyVymerovaciZaklad = 0.5
+
+# konstanty dane zakonem
+limitDanovehoZakladu = 27006 * 2.4 # 2,4 nasobek prumerne mzdy
+
+# osobni
+platNaHodinu = 200
+pocetOdpracovanychHodin = 480
+pocetPracovnichMesicu = 6
+odecetZDane = 24840 + 4020 # za studenta a za poplatnika z vedlejsi cinnosti
+
+
+# In[63]:
+
+def max_zisk_do_neplaceni_socialniho(_skutecnyLimitDanovehoZakladu, 
+                                     _pausalniZaklad):
+    # kolik muzeme vydelat, aby jsme se vesli do limitu
+    return _skutecnyLimitDanovehoZakladu / (1 - _pausalniZaklad)
+
+def socialni(_danovyZaklad, _skutecnyLimitDanovehoZakladu,
+                _skutecnyVymerovaciZaklad, _sazbaSocialniPojisteni):
+    # spocita vysi socialniho pojisteni
+    if _danovyZaklad <= _skutecnyLimitDanovehoZakladu:
+        socialniPojisteni = 0
+    else:
+        socialniPojisteni =  _skutecnyVymerovaciZaklad * _sazbaSocialniPojisteni
+    return socialniPojisteni
+
+def dan_z_prijmu(_sazbaDaneZPrijmu, _odecetZDane, _danovyZaklad):
+    danZPrijmu = _sazbaDaneZPrijmu * _danovyZaklad
+    vyslednaDanZPFO = danZPrijmu - _odecetZDane
+    if vyslednaDanZPFO < 0:
+        vyslednaDanZPFO = 0
+    return vyslednaDanZPFO
+
+def zdravotni(_sazbaProSkutecnyVymerovaciZaklad, _danovyZaklad, _sazbaZdravotniPojisteni):
+      return _sazbaProSkutecnyVymerovaciZaklad * _danovyZaklad * _sazbaZdravotniPojisteni
+
+
+# In[64]:
+
+prijemZaObdobi = pocetOdpracovanychHodin * platNaHodinu
+vydajeZaObdobi = pausalniZaklad * prijemZaObdobi
+danovyZaklad = prijemZaObdobi - vydajeZaObdobi
+skutecnyVymerovaciZaklad = danovyZaklad * sazbaProSkutecnyVymerovaciZaklad
+skutecnyLimitDanovehoZakladu = (pocetPracovnichMesicu / 12) * limitDanovehoZakladu
+
+
+# In[65]:
+
+socialniPojisteni = socialni(danovyZaklad, skutecnyLimitDanovehoZakladu, 
+         skutecnyVymerovaciZaklad, sazbaSocialniPojisteni)
+
+maxVydelekPredSocialnim = max_zisk_do_neplaceni_socialniho(
+    skutecnyLimitDanovehoZakladu, pausalniZaklad)
+
+vyslednaDanZPFO = dan_z_prijmu(sazbaDaneZPrijmu, odecetZDane, danovyZaklad)
+
+zdravotniPojisteni = zdravotni(sazbaProSkutecnyVymerovaciZaklad, 
+                               danovyZaklad, sazbaZdravotniPojisteni)
+
+skutecneCelkoveOdvody = socialniPojisteni + vyslednaDanZPFO + zdravotniPojisteni
+vyslednyZisk = prijemZaObdobi - skutecneCelkoveOdvody
+
+
+# In[58]:
+
+_res_d = {"maxV" : maxVydelekPredSocialnim,
+         "maxVCisty" : maxVydelekPredSocialnim * (1 - pausalniZaklad),
+         "maxVNaHod" : maxVydelekPredSocialnim / pocetOdpracovanychHodin,
+         "hrubyZisk" : prijemZaObdobi,
+         "vyslednyZisk": vyslednyZisk,
+         "ziskVProc" : vyslednyZisk/prijemZaObdobi,
+         "socialniPojisteni" : socialniPojisteni,
+         "vyslednaDanZPFO" : vyslednaDanZPFO,
+         "zdravotniPojisteni" : zdravotniPojisteni,
+         "celkoveOdvody" : skutecneCelkoveOdvody,
+         "cistyZiskNaMesic" : round(vyslednyZisk/pocetPracovnichMesicu),
+         "cistyZiskNaHod" : round(vyslednyZisk/pocetOdpracovanychHodin),
+         "pocetPracovnichMesicu" : pocetPracovnichMesicu,
+         }
+
+res_d = dict([(key, round(val, 2)) for key, val in _res_d.items()])
+
+# In[60]:
+
+print("""
+K tomu, abychom se vesli do limitu pred placenim 
+socialniho pojisteni, bychom museli vydelat méně než {maxV} Kč.
+
+To odpovídá celkovému čistému zisku {maxVCisty} Kč. ({maxVNaHod} Kč/hod)
+
+-----
+
+Čistý zisk za {pocetPracovnichMesicu} měsíců je {vyslednyZisk} z celkových {hrubyZisk}. 
+To je {ziskVProc}%. Odvody tvori {celkoveOdvody} Kč.
+
+To je čistého:
+{cistyZiskNaMesic} Kč/měsíc
+{cistyZiskNaHod} Kč/hod
+
+-----
+
+Odvody:
+Socialni: {socialniPojisteni}
+Zdravotni: {zdravotniPojisteni}
+Dan z prijmu (po odectech): {vyslednaDanZPFO}
+""".format(**res_d))
+
+import json
+print("Debug:")
+print(json.dumps(res_d, indent="\n"))
+```

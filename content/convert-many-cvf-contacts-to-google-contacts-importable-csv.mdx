@@ -1,0 +1,36 @@
+export const metadata = {
+  title: "Convert many .cvf contacts to Google Contacts importable CSV",
+  slug: "convert-many-cvf-contacts-to-google-contacts-importable-csv",
+  date: "2016-10-16",
+  tags: ["contribution","python"],
+};
+
+I stumbled upon a problem when I had many `.cvf` files and needed to import them to Google Contacts. Unfortunately, Google Contacts supports only one-file import, so rather than importing hundreds of `.cvf` contacts one by one, I decided to write a script with importable CSV.
+
+This is barebone minimum - just import this script inside the directory with all `.cvf` contacts and run it with `Python 3` from that directory. As a name for that contact, a name of the `.cvf` is used. The script is easily extendable for catching arbitrary type of strings based on the structure of your `.cvf` files.
+
+It will create CSV `results.csv` with everything.
+
+```python
+import glob
+import re
+
+def process_one_contact(vcf_file):
+    with open(vcf_file, "r") as ifile:
+        r = ifile.read()
+    tel = re.findall("PREF:(.*)\\n", r)[0]
+    return tel
+
+conts = {}
+for vcf in glob.glob("*.vcf"):
+    try:
+        conts[vcf.split(".")[0]] = process_one_contact(vcf)
+        print("done", vcf)
+    except:
+        print("failed: ", vcf)
+
+with open("results.csv", "w") as ifile:
+    ifile.write(Given Name,Phone1-Type,Phone1-Value")
+    for name, tel in conts.items():
+        ifile.write("{},mobile,{}\n".format(name, tel))
+```

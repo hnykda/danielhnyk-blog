@@ -1,0 +1,83 @@
+export const metadata = {
+  title: "Adding callback to a sklearn GridSearch",
+  slug: "adding-callback-to-a-sklearn-gridsearch",
+  date: "2016-08-18",
+  tags: ["data-science"],
+};
+
+GridSearch in `scikit-learn` is just awesome - no doubt about that. But what is unfortunate is the fact that it only shows one metric in the results and you couldn't store any _intermediate_ information or do some actions during the search (such as save every model, or compute additional metrics than just the one). 
+
+One (and only?) variant how to achieve that is to create your own custom scoring function, which would do something more than just scoring...
+
+Here is an example and how far I have got.
+
+```python
+import pickle
+import time
+import json
+
+def log_metrics_and_params(results, model_savepath):
+    # log results and save path
+    to_write = {}
+    to_write['results'] = results
+    to_write['model_savepath'] = model_savepath
+    log.info('%s', json.dumps(to_write))
+
+
+def save_model(clf):
+    # save model with timestamp
+    timestring = "".join(str(time.time()).split("."))
+    model_savepath = 'model_' + timestring + '.pk'
+    with open(model_savepath, 'wb') as ofile:
+        pickle.dump(clf, ofile)
+    return model_savepath
+
+def get_train_metrics():
+    # currently impossible
+    # X_train and y_train are in higher scopes
+    pass
+
+def get_val_metrics(y_pred, y_true):
+    return get_metrics(y_pred, y_true)
+    
+def get_metrics(y_pred, y_true):
+    # compute more than just one metrics
+    
+    chosen_metrics = {
+        'conf_mat': metrics.confusion_matrix,
+        'accuracy': metrics.accuracy_score,
+        'auc' : metrics.roc_auc_score,
+    }
+    
+    results = {}
+    for metric_name, metric_func in chosen_metrics.items():
+        try:
+            inter_res = metric_func(y_pred, y_true)
+        except Exception as ex:
+            inter_res = None
+            log.parent.error("Couldn't evaluate %s because of %s", metric_name, ex)
+        results[metric_name] = inter_res
+    
+    results['conf_mat'] = results['conf_mat'].tolist()
+    
+    return results
+
+
+def _my_scorer(clf, X_val, y_true_val):
+    # do all the work and return some of the metrics
+    
+    y_pred_val = clf.predict(X_val)
+    
+    results = get_val_metrics(y_pred_val, y_true_val)
+    model_savepath = save_model(clf)
+    log_metrics_and_params(results, model_savepath)
+    return results['accuracy']
+```
+
+and then just call gridsearch:
+```python
+gs = GridSearchCV(clf, tuned_params, scoring=_my_scorer)
+gs.fit(X, y)
+```
+
+Unfortunately, I wasn't able to get `X_train` and `y_train` in the scorer scope, so I can't get metrics for that :-( . 

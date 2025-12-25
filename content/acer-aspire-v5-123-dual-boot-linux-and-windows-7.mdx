@@ -1,0 +1,97 @@
+export const metadata = {
+  title: "Acer Aspire v5-123 dual-boot Linux and Windows 7",
+  slug: "acer-aspire-v5-123-dual-boot-linux-and-windows-7",
+  date: "2014-08-28",
+  tags: [],
+};
+
+My girlfriend asked me to choose a cheap laptop (max. 7000 CZK \~ 300 USD) for her. I chose [Acer Aspire v5-123](http://us.acer.com/ac/en/US/content/model/NX.MFQAA.005) (AMD CPU variant) for her without OS (there was just some Linux variant).
+
+I wanted to install Linux Lubuntu 14.04 and Windows 8 or 7, which I both have as an ISO and wanted to use USB memory stick for installation (since there is no DVD-ROM available). Normally it took me about 2 hours, now it took me three days. Here is why:
+
+UEFI (with secure boot), BIOS and GPT, MBR
+==========================================
+
+Very brief explanation of terminology.
+
+**BIOS**: It's the first thing your PC loads when you turn the device on by power button - then it looks for bootloader (e.g. GRUB). It's terribly old and there are good reasons why to replace it by *EUFI*.
+
+**UEFI**: It's *new BIOS*. It has some good features (which goes behind the scope of this article). New computers since aprox. 2012 are being shiped with UEFI by default.
+
+**UEFI Legacy**: This is UEFI *simulation* of BIOS needed for backward compatibility.
+
+BIOS or UEFI are on every computer. They have nothing to do with hard disk inside computer. That is the job of these two:
+
+**MBR:** Disk can be imagined as a really long line which contain zeros and ones. On first few *zeroes and ones* is *MBR* - *Master Boot Record*. This is where are informations about partitions on the particular disc and how to boot from them. This is (similarly to BIOS) very old and is going to be replaced by GPT.
+
+**GPT**: GPT is replacement for MBR. It has some advantages over MBR and it's recommended for new discs. But the main commonly useful advantages comes when you have: 1. Many partitions (more than aprox. 7) 2. Very large disc (more than 2 TB)
+
+Limitations
+===========
+
+It's very important to remember this:
+
+-   **UEFI works ONLY with GPT disks** (although there is a way to simulate *BIOS* using *UEFI Legacy* and hence use MBR)
+-   **BIOS works ONLY with MBR disc**
+
+UEFI usually comes with a *great* feature in case someone could try to load something bad into your PC when booting (it's probably somehow very often, since there must be special f***ing thingy for that) and it's called *Secure boot*. There are several reasons why there is such a thing and the most important IMHO is that Microsoft and his friends doesn't want people to install something like Linux... Basically you need to have Microsoft's (or other big players) permissions to sign your OS to install it.
+
+Acer Aspire v5-123 is of course UEFI (hence GPT disc), the Secure Boot was enabled *and there isn't possibility to disable it*. The problem is that Linux Lubuntu is (currently) almost impossible to install with secure boot [citation needed] and you need to disable it first.
+
+Next good thing to remember is this:
+
+-   Windows 7 is possible to (easily) install ONLY to MBR disc
+-   Windows 8 is possible to install ONLY with UEFI (hence you need GPT disc)
+
+Solution
+========
+
+Fortunately, UEFI has option to somehow *simulate* BIOS mode called already mentioned **UEFI Legacy**. This helped me a lot. I set up *Legacy* instead of UEFI. Using gparted I formatted hard disc (hence destroyed all data), created new partition table as MBR (in gparted it's called `msdos`), since I hadn't needed GPT advantages and then I could finally could get to installation part.
+
+Creating bootable USB flash with Windows (7/8) from Linux
+=========================================================
+
+For some reason, this stupidly tiny part which I usually do in one command when creating bootable Linux took me another few hours and tons of unsuccessful attempts.
+
+Shortly: **The only working way to make Windows 7 or 8 bootable USB memory stick from ISO is to use WinUSB and suitable USB memory stick!** ([WinUSB](http://en.congelli.eu/prog_info_winusb.html))
+
+I tried several different methods on two different computers with different distributions (Arch Linux and Linux Mint 17), several USB memory stick (Kingston and SP) and both FS (FAT32 and NTFS) including:
+
+-   `dd` command (which work for me for every Linux distribution)
+-   Linux Mint USB Keyring writer
+-   [ms-sys](http://serverfault.com/a/167060) method
+-   [yumi MultibootUSB](http://www.pendrivelinux.com/yumi-multiboot-usb-creator/)
+-   several `cp` or `rsync` variants
+-   syslinux or GRUB variants
+-   unetbootin
+
+Non of these worked for me and I think I'm quite advanced in this area!
+
+WinUSB problems
+---------------
+
+Although WinUSB is very easy to use, it wasn't easy to install it on Ubuntu 14.04. Installing it from repository didn't work for me and I had to install it manually. Some dependencies I had to download manually also.
+
+Also - only one of my two USB memory sticks worked! The second one just throw some error with inability to write to it.
+
+Conclusion
+==========
+
+So if you have same configuration as me which is:
+
+* laptop without DVD-ROM with *small* hard disc (less than 2 TB)
+* UEFI with *legacy* mode 
+
+and you want
+* dualboot with Windows 7 and some Linux distribution
+* you don't need other advantages of UEFI and GPT
+
+I recommend you this:
+
+-   Create bootable Windows 7 USB memory stick and bootable Linux USB stick (WinUSB)
+-   Enable *legacy* in UEFI (hence, the secure boot will disappear)
+-   Convert/create your GPT disc to MBR (I use gparted, which is usually in all xUbuntu distros when you boot to Live environment)
+-   Boot to Windows 7 installation, create partition for it (I choose about 100 GB). It will also create one partition in front of this one for boot files (so you end up with two primary partition) and install windows
+-   Install Linux to third primary partition and make the fourth logical for home and fifth logical for swap
+
+

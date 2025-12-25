@@ -1,0 +1,155 @@
+export const metadata = {
+  title: "Good habits when writing small console modules and scripts in Python 3",
+  slug: "good-habits-when-writing-small-modules-and-scripts-python-3",
+  date: "2015-07-06",
+  tags: ["python","programming"],
+};
+
+As you can see on my blog, I write in Python (3) a lot. I struggled with several things when I had been writing the scripts and small modules. Here is what I basically needed:
+
+1.  Handling the output in logging like manner. That means to have ability to set up logging level (different for debug, info, or silent mode). This should be scalable so I can use this logging settings in several modules with minimal code needed.
+2.  Parsing command line arguments
+3.  logging should be set by reading the logging config file
+4.  have a possibility to turn on/off debug mode easily
+5.  have a possibility to terminate process by CTRL+C nicely
+6.  Nice layout of code and readability (for maintenance). In the best, everything wrapped in functions and objects. Not something like this:
+
+```language-python
+# beginning of my file
+
+print("Hello. This is on the beginning of the file")
+
+from argparse import ArgumentParser
+# some stuffs happens here
+
+def some_func():
+    # doing something
+    pass
+
+class SomeObject():
+    # object from hell
+    pass
+
+# ...
+
+if __name__ == "__main__":
+    ob = SomeObject()
+    res = some_func(ob)
+```
+
+code above just seems painful to handle. My final layout of these files is as follows:
+
+-   one main file, sometimes called `main.py` or `program_name.py`. This is what is being ran when starting the program.
+-   importing `logging` module at the beginning of the main file (this is only code which is not wrapped). It's necessary because I want to have logger available from the beginning. Then simply getting the main logger in every app.
+-   in `if __name__ == "__main__"` I call `main()` method.
+-   argument parsing happens in `argument_parsing()` method in `main()` and returns `args` object. `args` object is not going anywhere else then in `main()` method. If I need things from `args` object, I just pass them as arguments to the methods or classes constructors. This helps to leave the code clean and easy to debug.
+-   if a program needs more than one class, I usually split it to several modules.
+-   methods is usually better to wrap under some class
+-   in arguments, I almost always add `--debug` flag which turns logging to `DEBUG` level.
+
+So here is an example:
+
+```language-python
+"""
+Docstring describing the whole progam
+"""
+
+import logging
+from logging.config import fileConfig
+
+fileConfig('logging_config.ini')
+log = logging.getLogger()
+
+class MainProgramObject():
+
+    def __init__(self, arg1, arg2):
+        log.debug("Initilizing object.")
+        self.arg1 = arg1
+        self.arg2 = arg2
+
+    def some_logic(self, ):
+        log.info("I'm doing nasty stuffs from module another_module.py")
+
+        from another_module import DidIt
+        dit = DidIt(self.arg1)
+
+        return dit.get_result()
+
+
+def parse_arguments():
+    from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
+
+    parser = ArgumentParser(description="Brief description of program", formatter_class=ArgumentDefaultsHelpFormatter)
+    parser.add_argument( "-a", "--arg1", type=int, default = "HiHi", help = "First argument!")
+    parser.add_argument( "-b", "--barg2", type=str, default = "HeHe", help = "Second argument!")
+    parser.add_argument( "-d", "--debug", action="store_true", help = "Turn on debug mode." )
+
+    args = parser.parse_args()
+    return args
+
+def main():
+
+    args = parse_arguments()
+    if args.debug:
+        log.setLevel(logging.DEBUG)
+    log.debug("Log level set to {}".format(log.level))
+
+    try:
+        mainObj = MainProgramObject(args.arg1, args.barg2)
+        result = mainObj.some_logic()
+        print result
+    except KeyboardInterrupt as ex:
+        log.warning("Termined by user.")
+
+if __name__ == "__main__":
+    main()
+```
+
+an example of `another_module.py` might look like this:
+
+```language-python
+"""
+Again, describe what is going here
+"""
+
+import logging
+log = logging.getLogger(__name__)
+
+class DidIt():
+    def __init__(self, argums):
+        log.debug("Working on this arg {}".format(self.argums))
+        self.argums = argums
+
+    def get_result(self):
+        # example of doing some stuffs
+        return type(self.argums)
+```
+
+This is the best workflow I've found as far. But there of course might be better ways ;) .
+
+And the `logging_config.ini` looks like this:
+
+```language-python
+[loggers]
+keys=root
+
+[handlers]
+keys=stream_handler
+
+[formatters]
+keys=formatter
+
+[logger_root]
+level=INFO
+handlers=stream_handler
+
+[handler_stream_handler]
+class=StreamHandler
+level=DEBUG
+formatter=formatter
+args=(sys.stderr,)
+
+[formatter_formatter]
+format=%(asctime)s %(name)-12s %(levelname)-8s %(message)s
+```
+

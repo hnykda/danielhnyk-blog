@@ -1,0 +1,146 @@
+export const metadata = {
+  title: "Connecting from GCP to AWS services",
+  slug: "connecting-from-gcp-to-aws-services",
+  date: "2018-02-10",
+  tags: ["contribution","IT"],
+};
+
+While migrating from AWS to GCP, I didn't want to migrate all at once but rather go partially. But AWS microservices I used are behind VPN, making it non-trivial to connect to them from GCP. I am sure there is a solution when you would be able to address servers from GCP directly to AWS, but I didn't found a way how with my knowledge.
+
+Nevertheless, I found quite simple solution. What I really needed was accessing only a few HTTP endpoints on few machines in AWS from GCP. Hence, I created this solution:
+
+My solution has two limitations:
+
+1. You can only use some predefined endpoints you specify in the `nginx.conf` file on AWS side.
+2. all traffic has to hope through 2 additional instances, potentially reducing bandwidth.
+
+### Topology
+```bash
+GCP-service  <-gcp-internal-> GCP-proxy (GCP_STATIC_IP) <---internet---> AWS-proxy (AWS_STATIC_IP) <-aws-internal-> AWS-service
+```
+then I added AWS-proxy instance to VPN security group the machines were in and enabled inbound traffic from `GCP_STATIC_IP/32`, which is GCP-proxy's static IP.
+
+AWS-proxy machine has Elastic IP (hence, public static) and is in the following code marked as `AWS_STATIC_IP`.
+
+You just need to route the incoming traffic from the GCP proxy to appropriate endpoints in the AWS world. 
+
+# How it is used
+Then all your endpoints which you accessed directly, e.g. `http://something/my-task` should be replaced by `http://<GCP_PROXY_URI>/my-task` in your application. That's it. The `<GCP_PROXY_URI` can be a domain name or a local IP address.
+
+
+# `nginx` server configurations
+Below are relevant part of `nginx.conf` server definition. 
+
+### GCP
+On the GCP side, I needed to route all requests to the AWS proxy, so it's easy:
+ 
+```nginx
+    server {
+      listen 80;
+      
+      # domain name of the machine where this proxy is running on
+      # as long as you don't change the instance name, it shouldn't change
+      # so your machine can even change IP address
+      # could be local IP name as well though
+      # this is what you should reffer to in your GCP microservices
+      server_name <DOMAIN_NAME>;
+      
+      location / {
+          access_log off;
+          proxy_set_header X-Real-IP $remote_addr;
+          proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_pass http://<AWS_STATIC_PUBLIC_IP>;
+        }
+    }
+```
+
+### AWS
+This is the part which may get more complicated. You basically need a new `location` part for each functionality/server you want to route to.
+
+```nginx
+    server {
+      listen 80;
+      
+      # external IP address of the AWS targeted device
+      # so very likely IP address of the instance you are running this on
+      # this needs to match what is in GCP proxy_pass url
+      server_name <GCP_STATIC_IP>;  
+
+      # endpoints with proxy_pass to VPN-allowed machines even using their DNS records
+      # some endpoint of microservice1
+      location /endpoint1 {
+          proxy_set_header X-Real-IP $remote_addr;
+          proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+          proxy_pass http://<internal-aws-domain-name>/endpoint1;
+        }
+
+      # something else
+      location /endpoints2 {
+          proxy_set_header X-Real-IP $remote_addr;
+          proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+          proxy_pass http://<internal-aws-ip-address>/endpoints2;
+        }
+    }
+
+```
+
+# Deployment
+So to complete the example, I:
+
+1. created a static IP in GCP
+2. created a new instance in GCP and assigned the IP from step 1. to it
+
+did the same in AWS (it's called Elastic IP).
+
+Then created a simple dockerfile:
+```docker
+FROM nginx:alpine
+COPY ./nginx.conf /etc/nginx/nginx.conf
+```
+
+created appropriate `nginx.conf` with the settings from above:
+
+```nginx
+user  nginx;
+worker_processes  1;
+
+error_log  /var/log/nginx/error.log debug;
+pid        /var/run/nginx.pid;
+
+
+events {
+    worker_connections  1024;
+}
+
+
+http {
+    server_names_hash_bucket_size 128;
+    include       /etc/nginx/mime.types;
+    default_type  application/octet-stream;
+
+    log_format  main  '$remote_addr - $remote_user [$time_local] "$request" '
+                      '$status $body_bytes_sent "$http_referer" '
+                      '"$http_user_agent" "$http_x_forwarded_for"';
+
+    access_log  /var/log/nginx/access.log  main;
+
+    sendfile        on;
+    #tcp_nopush     on;
+
+    keepalive_timeout  65;
+
+    #gzip  on;
+
+    include /etc/nginx/conf.d/*.conf;
+
+    server {
+        # GCP or AWS serve conf here
+    }
+}
+```
+
+and then logged in to the instances and run:
+```bash
+docker build -t aws-proxy .   # or gcp-proxy
+docker run -d -p 80:80 aws-proxy  # or gcp-proxy  
+```

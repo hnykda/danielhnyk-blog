@@ -1,0 +1,28 @@
+export const metadata = {
+  title: "Connect a bluetooth keyboard to Rasperry Pi 3 Arch Linux ARM",
+  slug: "connect-a-bluetooth-keyboard-to-rasperry-pi-3-arch-linux-arm",
+  date: "2017-08-27",
+  tags: ["IT","contribution","linux"],
+};
+
+I just wanted to connect a bluetooth keyboard WK29B keyboard to my Raspberry Pi. It wasn't immediately straightforward, so I had to:
+
+1. install `base-devel` to be able to build packages from AUR
+2. download [hciattach-rpi3](https://aur.archlinux.org/packages/hciattach-rpi3/) and [pi-bluetooth](https://aur.archlinux.org/packages/pi-bluetooth/)
+3. untar both of them (e.g. `tar xvf hciattach-rpi3`)
+4. build and install `hciattach-rpi3` **first** by `makepkg -si`
+5. **then** build and install `pi-bluetooth`
+6. enable and start `bcrm43438` by `sudo systemctl enable brcm43438.service`, `sudo systemctl start brcm43438.service`
+7. install `bluez`, `bluez-utils` by `pacman -Sy bluez`
+8. enable and start `bluetooth`
+9. go to `bluetoothctl` shell and:
+```
+power on
+agent on
+scan on  # make sure that your keyboard/device is discoverable (I had to press ctrl+K)
+trust MAC_ADDRESS
+pair MAC_ADDRESS # I had to "blindly" type some code and press enter
+connect MAC_ADDRESS
+```
+
+That should be all!

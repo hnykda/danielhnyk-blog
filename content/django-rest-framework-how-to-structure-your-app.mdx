@@ -1,0 +1,98 @@
+export const metadata = {
+  title: "Django REST framework how to structure your app",
+  slug: "django-rest-framework-how-to-structure-your-app",
+  date: "2017-08-27",
+  tags: ["IT","python","contribution"],
+};
+
+I finally got to a great project, where I could utilise the powers of Django. One of the requirements of the project was to expose everything through API as well as having nice user UI + Administration with all that stuff like versioning, object-level permissions and some special endpoints which do some summaries and such.
+
+I have built several API (micro)services using `flask` or `hug`, which I warmly recommend, but for this project, I already knew it's going to be big and if I went with any of these, I would basically reimplement what is already present in Django. Hence I went with that and looked for a nice API library with that.
+
+Django REST framework (aka DRF - terribly long name!) seems like an extremely obvious choice here. It is not very often when you have basically one option and that *options is just awesome*. I am not going to describe the advantages of DRF, you can easily find that elsewhere, but I would like to share some thoughts I've learned and also what I had a hard time to find. 
+
+# Understanding DRF
+[Don't make the same mistake as I did and read Classy DRF first](http://www.cdrf.co/)! Why the hell was this on a [second page of google (xkcd truthiness)](https://xkcd.com/1334/)? I can trust no one.
+
+I was quite scared when first browsing through DRF documentation. It is great, but compared to Django still needs some work to be done - but who would be that silly to compare it to best documentation of OSS projects? I think the main problem was that there just wasn't that many examples. One reason may be the fact it is still quite new project (at least the third version) and hence it is slowly getting better and better. 
+
+Anyway, as you can see in that Classy DRF page, it is not that complicated. You just have some cool magical (generics) `views`, which automagically works with Django's models and safes some boilerplate code. Then there are `serializers`, which take some `fields` or models and turn them (or creates them from) into forms, JSON or whatever format. This is 90% of DRF features I needed...
+
+# Structuring your project (API vs. UI)
+Django is quite opinionated how you should structure your app. When you add API using DRF, it goes like:
+
+```
+myproject/
+    manage.py
+    myproject/
+        __init__.py
+        urls.py
+        wsgi.py
+        settings.py
+    my_app/
+        __init__.py
+        models.py
+        views.py
+        urls.py
+        serializers.py
+        permissions.py
+        templates/
+            my_app/
+                base.html
+                list.html
+                detail.html
+        static/
+        tests/
+            test_api.py
+            test_ui.py
+            test_common.py
+``` 
+
+As you can see, when I started adding API stuff, the `my_app` folder started to be quite big and incomprehensible, since additional files were there such as `serializers.py`, `api_views.py` to separate views from regular *UI* views, `permissions.py`, different `test_*.py` for UI views and API views, things got mixed and only after a few days I had already lost control...
+
+Hence, I decided on the following structure:
+
+```
+myproject/
+    manage.py
+    myproject/
+        __init__.py
+        urls.py
+        wsgi.py
+        settings.py
+    my_app/
+        __init__.py
+        models.py
+        views.py
+        urls.py
+        templates/
+            my_app/
+                base.html
+                list.html
+                detail.html
+        static/
+        test.py
+    api/
+      my_app/
+        __init__.py
+        views.py
+        urls.py
+        serializers.py
+        permissions.py
+        test_api.py
+``` 
+
+by using this structure, I nicely decoupled UI and *normal* functionality from API. Of course, it is really just a matter of choice. I simply feel that this is easier to maintain (especially when having more than one app as above) without any significant drawbacks. 
+
+But a warning - it goes against Django official recommendation that you should try to put _everything_ app-related into that app folder and none of the apps should see into another app (and in the structure above it does - `api` has to know about something from some other module).
+
+## Views not bounded to any model
+When I build microservices which do stuff, there is usually no *model* in mind. Simply execute some functions with some parameters. This thinking seems to be quite off when working with DRF. It's power really comes mostly when used with models, otherwise, you should just use regular views or/and flask or hug. 
+
+But I had to add some functionality which really didn't work with model (in a CRUD sense), but e.g. did something like:
+
+> query all objects, get some information about each, wrangle it a bit and create a something like TSV on S3
+
+For that, apparently, [you should use either function-based views or `views.APIView`](https://github.com/encode/django-rest-framework/issues/5343#issuecomment-324557842). It has some shortcomings though since DRF cannot guess a lot from these views and you have to e.g. add doc serializers to it manually (which make sense of course).
+
+That's all for now, but I am sure I am going to write some additional notes as I am moving forward with this project.

@@ -1,0 +1,107 @@
+export const metadata = {
+  title: "Simple GitHub workflow for Django project with local database",
+  slug: "simple-github-workflow-django-project-local-database",
+  date: "2015-05-19",
+  tags: [],
+};
+
+I manage several sites (like this blog) and I was looking for simple and easy workflow for revision system.
+
+I looked for these qualities:
+
+-   Upload to GitHub
+-   Easy to create
+-   Easily maintainable
+-   Transparent and simple
+-   Easy works with `nginx` (and in my case `Gunicorn`)
+
+Solution
+========
+
+I end up with solution inspired by this [this article](http://scottchacon.com/2011/08/31/github-flow.html). Very shortly.
+
+**Notion**: Replace `$ABSOLUTEPATH` with the absolute path of your `baseDir` - in my case something like `/var/www`. Here is the solution:
+
+1.  In base directory (for this guide it's `baseDir`) create folder `production` and `work_dir`
+2.  In base directory run `git init --bare`. New directory called `baseDir.git` will be created
+3.  Copy following into `baseDir.git/hooks/pre-post-receive`:
+
+        #!/bin/sh
+        git --work-tree=$ABSOLUTEPATH/baseDir/production --git-dir=$ABSOLUTEPATH/baseDir/baseDir.git checkout -f
+
+        sudo chown -R nginx:webdata $ABSOLUTEPATH/baseDir/production
+
+4.  Place your files in your `work_dir`, `git init` -itialize it and possibly connect it as origin remote to `GitHub` if needed.
+5.  Set new remote to production by running: `git remote add production file:///$ABSOLUTEPATH/baseDir/baseDir.git/`
+6.  Do your work in `work_dir`. I have one simple rule: **Never make changes in master - everything in master can be any time pushed to production**. So for change I create new branch, test it and when it's ready, just merge it to master.
+7.  When you do your changes and merge them to master, push them to production by running `git push production`.
+
+Caveats
+=======
+
+**Permissions** `nginx` is run by user `nginx` and group `webdata` for security reasons as recommended. Hence, is good if all files on production are owned by those. But I usually work as different user. It is problem, e.g. when I create a file or so - it's owned by the different user and not the `nginx`. For that reason there is this line in `pre-post-receive`:
+
+    sudo chown -R nginx:webdata ABSOLUTEPATH/baseDir/production
+
+it's the only solution I found. But problem is that you need to use `sudo`, which seems as an overkill to me...
+
+Problems
+========
+
+Databases
+---------
+
+When I use basic settings from `django` with `sqlite` database, I sometimes overwrote my up-to-date production database with the one in working directory. Adding database to `.gitignore` doesn't seem as a good idea, because when I change models and migrate, it doesn't pushed itself. It's questionable if my solution is necessary, since migrations are very rare, but anyway... Maybe it would be better to have it in `.gitignore` and copy database manually just in these rare cases.
+
+Solution to this problem is adding this to your `work_dir/.git/hooks/pre-commit`:
+
+    #!/usr/bin/python
+
+    import hashlib
+    import sys
+    basedir = "$ABSOLTEPATH/baseDir/"
+
+    workdb = basedir + "work_dir/django/db.sqlite3"
+    productdb = basedir + "production/django/db.sqlite3"
+
+    hashes = [hashlib.md5(f).digest() for f in 
+                [
+                open(workdb, "rb").read(), 
+                open(productdb, "rb").read()
+                ]
+            ]
+
+    #print(hashes)
+    if hashes[0] == hashes[1]:
+        print("Databases are same")
+    elif hashes[0] != hashes[1]:
+
+        sys.stdin = open('/dev/tty')
+        print("Database on production is different than the one in the working directory")
+
+        resp = input("Do you want to backup current working directory database and copy the production database to working directory? [Y/N]")
+        if resp.lower() == "y":
+            import subprocess
+
+            bckpcontrol = subprocess.call(["cp", workdb, workdb + "_backup"])
+            if bckpcontrol != 0:
+                print("Can't create backup of database")
+                sys.exit(1)
+
+            cpcontrol = subprocess.call(["cp", productdb, workdb])
+            if cpcontrol != 0:
+                print("Database wasn't copied due to error")
+                sys.exit(1)
+            elif cpcontrol == 0:
+                print("Database copied")
+                sys.exit(0)
+
+        else:
+            print("No changes. Exiting...")
+            sys.exit(0)
+
+Secret key in `settings.py`
+---------------------------
+
+I backup my work on `GitHub` and I don't pay for it (my projects are really small and not private). But in `settings.py` of `django` workflow contains private data, like `SECRET_KEY` which works for generating new passwords and such. For that reason it's not a good idea to have it publicly on `GitHub`. I'm going to create a hook for that in future, possibly using `sed` and `awk` linux tools.
+

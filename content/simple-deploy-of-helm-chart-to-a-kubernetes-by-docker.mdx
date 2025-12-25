@@ -1,0 +1,58 @@
+export const metadata = {
+  title: "Simple deploy of helm chart to a kubernetes by Gitlab CI",
+  slug: "simple-deploy-of-helm-chart-to-a-kubernetes-by-docker",
+  date: "2018-10-18",
+  tags: ["IT","devops"],
+};
+
+From `drone.io`, I am used to deploy helm charts through the [helm-plugin](https://github.com/ipedrazas/drone-helm). I wanted something similar in Gitlab CI, ideally based on a simple docker image.
+
+Since `helm` needs to know where to connect, some cluster specification must be supplied. I didn't find a better way than creating a `kube` config in a home directory which get's populated on fly. I also wanted to have it generic in a way to use the same deployment step parametrized by the env variables. And here is the result. First of all, you need to create the minimal config template:
+
+```yaml
+# deploy/kube-config-for-helm
+apiVersion: v1
+clusters:
+- cluster:
+    insecure-skip-tls-verify: true
+    server: https://{{ KUBE_API_ADDRESS }}
+  name: helm
+contexts:
+- context:
+    cluster: helm
+    namespace: default
+    user: helm
+  name: helm
+current-context: "helm"
+kind: Config
+preferences: {}
+users:
+- name: helm
+  user:
+    token: {{ TILLER_USER_TOKEN }}
+```
+
+The deployment step in gitlab CI looks like this:
+
+```yaml
+deploy:
+  stage: deploy
+  image:
+    name: alpine/helm:2.9.0
+    entrypoint: ["/bin/sh", "-c"]
+  variables:
+    # helm's user token from the cluster, it's stored in secrets
+    HELM_TOKEN: ${TILLER_USER_TOKEN_STAGING}
+    # IP of the cluster without `https://` prefix
+    K8S_API_SERVER: ${KUBE_API_ADDRESS_STAGING}
+  before_script:
+  # creates a kube config used by helm to connect to the server
+  - mkdir -p /root/.kube
+  - cp deploy/kube-config-for-helm /root/.kube/config
+  - sed -i "s/{{ TILLER_USER_TOKEN }}/${HELM_TOKEN}/g" /root/.kube/config
+  - sed -i "s/{{ KUBE_API_ADDRESS }}/${K8S_API_SERVER}/g" /root/.kube/config
+  script:
+  - helm upgrade --install yourReleaseName --namespace gitlab-ci --debug deploy/chart
+```
+
+From the above, you can also figure out how to deploy just by using this docker container. Basically replaying the `before_script` with `script`. 

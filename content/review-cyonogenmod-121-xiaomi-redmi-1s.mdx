@@ -1,0 +1,25 @@
+export const metadata = {
+  title: "Review of CyanogenMod 12.1 on Xiaomi Redmi 1s",
+  slug: "review-cyonogenmod-121-xiaomi-redmi-1s",
+  date: "2015-09-15",
+  tags: ["IT","contribution"],
+};
+
+I've recently bought Xiaomi Redmi 1s as an replacement for my old Samsung Galaxy S2 (since I crashed my screen) where I successfully used CM 11. It was a logical choice to have it on my new phone as well. Besides that, there is also one additional very promising ROM [MoKee](http://en.miui.com/thread-94779-1-1.html) , which I might try in the future.
+
+Installation process
+====================
+
+I am not going to go into details, because there are many of guides on the internet already. All you basically need is to install custom recovery (I recommend TWRP) and then use it for installing a ROM and possibly Gapps.
+
+But installation wasn't as easy as I expected. According to [official site of TWRP](https://twrp.me/devices/xiaomiredmi1s.html) and also on gazillion other pages and [videos](https://www.youtube.com/watch?v=z5ZyDsPfU1g), I should go to ROM updater (part of stock MIUI ROM), click on "Install images" or "Select update packages" button and select downloaded zip. **But there wasn't such a button on my phone!** I am not stupid, really. I did everything according to guides and videos - same model, same settings, same version of MIUI. But this button just wasn't there.
+
+Hence, I decided to download official new ROM - maybe the button will appear with newer version. Hence I wanted to install MIUI 6 from official repositories. **Unfortunately, non of links worked!** What company has problem to make their official firmware downloadable today?! Downloading that was painful. I had to do it several times on different computers using `wget`, because chromium and others browser just through time out error. I had to also manually add "o" before the link - it changed the mirror and I could finally download it (I found this on some forum). But the speed? 600 MB in 2 hours? Is it 1999? This is not a good marketing strategy for MIUI.
+
+Then I decided to update my phone in the official way. Installation process took few minutes to get to 98%. But then I've got an error and my phone was bricked. It was in bootloop. What!? This is how official update works? I then spent two days trying to get to the PC with windows (I have only Linux everywhere), so I could unbrick it using fastboot methods. Then it finally worked, I've got new MIUI 6. In that part I installed TWRP using fastboot anyway and then finally installed last version of CM 12.
+
+Review of CM 12
+===============
+
+I'm surprised there is no easily accessible review of this ROM. I am not going to details, but overall the ROM is good. There are no major bugs like not working GPS, battery drain or HDR not working. Everything works. But I can feel, and this is not problem of the ROM, but phone itself, that it's just a bit lazy. It just not lighting, when you open an app. Sometimes the phone freeze for a few seconds when it's under a heavy load (but nothing significant). Hence, I would recommend you this ROM, since it's nice, easy to use, clean, customizable and without major bugs. But be prepare for few glitch from time to time.
+

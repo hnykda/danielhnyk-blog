@@ -1,0 +1,50 @@
+export const metadata = {
+  title: "Fitting distribution in histogram using Python",
+  slug: "fitting-distribution-histogram-using-python",
+  date: "2015-05-31",
+  tags: ["python","data-science"],
+};
+
+I was surprised that I couldn't found this piece of code somewhere.
+
+What I basically wanted was to fit some theoretical distribution to my graph. If you are lucky, you should see something like this:
+
+![Histogram with distributions](/images/ghost/2015/09/figure_1_9zkY7mn.svg)
+
+![](/images/ghost/2015/09/figure_1.svg)
+
+```language-python
+from scipy import stats
+import numpy as np
+import matplotlib.pylab as plt
+
+# create some normal random noisy data
+ser = 50*np.random.rand() * np.random.normal(10, 10, 100) + 20
+
+# plot normed histogram
+plt.hist(ser, normed=True)
+
+# find minimum and maximum of xticks, so we know
+# where we should compute theoretical distribution
+xt = plt.xticks()[0]
+xmin, xmax = min(xt), max(xt) 
+lnspc = np.linspace(xmin, xmax, len(ser))
+
+# lets try the normal distribution first
+m, s = stats.norm.fit(ser) # get mean and standard deviation
+pdf_g = stats.norm.pdf(lnspc, m, s) # now get theoretical values in our interval
+plt.plot(lnspc, pdf_g, label="Norm") # plot it
+
+# exactly same as above
+ag,bg,cg = stats.gamma.fit(ser)
+pdf_gamma = stats.gamma.pdf(lnspc, ag, bg,cg)
+plt.plot(lnspc, pdf_gamma, label="Gamma")
+
+# guess what :) 
+ab,bb,cb,db = stats.beta.fit(ser)
+pdf_beta = stats.beta.pdf(lnspc, ab, bb,cb, db)
+plt.plot(lnspc, pdf_beta, label="Beta")
+
+plt.show()
+```
+

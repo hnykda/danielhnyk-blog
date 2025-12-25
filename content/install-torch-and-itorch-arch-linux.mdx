@@ -1,0 +1,27 @@
+export const metadata = {
+  title: "Install Torch, iTorch and luarocks at (Arch) Linux",
+  slug: "install-torch-and-itorch-arch-linux",
+  date: "2015-05-27",
+  tags: [],
+};
+
+I currently needed to install [Torch](http://torch.ch/) on my Arch Linux machine, but packages in AUR and even in Core repository were out of date.
+
+I don't enjoy installing anything system-wide if it's strictly not through `pacman` (including pip etc.). And I do like to keep my home directory clean us much as possible.
+
+Torch also brinch iPython kernel `iTorch`. But I have iPython installed system-wide. Fortunately, it's able to install kernels localy. Currently you do not find a lot of information about installing new kernel, by the way. Torch is also highly dependend on Luarocks (if you want to use it for something usefull). Fortunately, Torch comes with `luarocks` bundled in. Again, you don't need to install it system-wide and play with `--local` flag. Everything will be installed inside one directory of your choice (preferably in your home dir, but in top level).
+
+Anyway, as simply stated on [official github pages of Torch](https://github.com/torch/distro), co can build Torch on your own, in any directory you wish. Just change these lines:
+
+    git clone https://github.com/torch/distro.git ~/torch --recursive
+    cd ~/torch; ./install.sh
+
+to something like:
+
+    git clone https://github.com/torch/distro.git ~/MYDIR/torch --recursive
+    cd ~/MYDIR/torch; ./install.sh
+
+and enjoy. This script will install iTorch kernel to your `~/.ipython/kernels` and also add some lines (containing PATH to current Torch dir) into your `ZSH` or `BASH` config files.
+
+This let you keep clean your home and system plus you can still have upstream version of repository using `git`. Awesome!
+
