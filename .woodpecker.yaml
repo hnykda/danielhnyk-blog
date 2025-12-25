@@ -19,6 +19,4 @@ steps:
     commands:
       - mkdir -p ~/.kube
       - echo "$KUBECONFIG_DATA" | base64 -d > ~/.kube/config
-      - helm upgrade --install blog ./chart
-          --namespace apps
-          --set image=ghcr.io/hnykda/danielhnyk-blog:${CI_COMMIT_SHA:0:8}
+      - helm upgrade --install blog ./chart --namespace apps --set image.tag=${CI_COMMIT_SHA:0:8}
