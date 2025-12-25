@@ -6,8 +6,8 @@ steps:
   - name: build
     image: woodpeckerci/plugin-docker-buildx
     settings:
-      repo: localhost:32000/danielhnyk-blog
-      registry: localhost:32000
+      repo: registry.container-registry:5000/danielhnyk-blog
+      registry: registry.container-registry:5000
       tags:
         - ${CI_COMMIT_SHA:0:8}
         - latest
