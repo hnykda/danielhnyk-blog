@@ -6,7 +6,7 @@ export const metadata = {
 };
 
 I am running `docker-machine` on my Arch Linux laptop and when creating new `virtualbox` `docker-machine` by:
-```
+```bash
 $ docker-machine create \ 
     --driver virtualbox \ 
     --virtualbox-cpu-count 2 \
@@ -14,7 +14,7 @@ $ docker-machine create \
 ```
 
 I had then problems with pulling new containers (and probably accessing internet in general) from the inside of the machine, e.g.:
-```
+```python
 $ docker-compose -f docker-compose.yml build
 Building common_folder
 Step 1 : FROM busybox
@@ -26,7 +26,7 @@ dial tcp: lookup index.docker.io on 10.0.2.3:53: server misbehaving
 ```
 
 The port `53` and weird address `10.0.2.3` gave me a hint that it is about DNS and that lead to `resolve.conf`. So I `ssh` inside the machine:
-```
+```bash
 $ docker-machine ssh pipeline                                                 
 ```
 and run

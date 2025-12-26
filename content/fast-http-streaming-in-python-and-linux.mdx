@@ -36,7 +36,7 @@ def stream_requests(url, chunk_size=10000):
     for chunk in response.iter_lines(chunk_size=chunk_size, delimiter=b'\n'):
         if chunk:
             yield json.loads(chunk)
-```
+```python
 
 is terribly slow - it got us only to something like 3MB/s on AWS, which is compared to 200 MB/s you get in curl quite embarrassing. Different chunksize didn't change much, it was even worse...
 
@@ -73,7 +73,7 @@ def stream_curl(url):
             empty_lines += 1
         else:
             yield json.loads(line)
-```
+```python
 
 and then use it as:
 

@@ -37,7 +37,7 @@ What to do to install appropriate tools for rails?
 ```
 pacman -S ruby
 yaourt -S ruby-build rbenv
-```
+```python
 And here I am using helper for AUR, otherwise I would have to build and install the last two packages myself. Then you have to edit your `$PATH` and add lines to your `.bashrc`. 
 
 Then it take you a while until you understand what `bundle` and `gem` is. Both are basically used for installation of packages for ruby. `gem` should be installed, so install `bundler`. Then you can use `gem install rails` to install rails. [About 111 sloc of dependencies already](https://github.com/rails/rails/blob/master/Gemfile)! And why the hell **rails require JavaScript Runtime**? All together it took about half an hour.
@@ -63,7 +63,7 @@ class Item(models.Model):
     name = models.CharField(max_length=100)
     release_date = models.DateField()
     num_stars = models.IntegerField()
-```
+```python
 then you add it to your apps in settings and then do database migration (automatically). 
 
 On rails it's not like this. For creating a model with migration you have to use `rails g model Owner first_name:string last_name:string`. You don't have a lot of option for fields (basically those which are supported by database), so forget about adding some relationships or file uploads. Adding e.g. many-to-many relationship in Rails contains adding it to the model and then creating your own migration with special join table. In django you don't have to do anything at all for this fields - it's abstraction is perfect. 
@@ -86,7 +86,7 @@ project
 │   └── wsgi.py
 └── manage.py
 1 directory, 5 files
-```
+```python
 and that's it! That is all you need!
 
 And now Rails:

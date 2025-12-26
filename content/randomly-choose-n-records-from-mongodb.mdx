@@ -11,7 +11,7 @@ Since `MongoDB 3.2`, it can be done using `aggregate` function with `$sample` op
 
 ```language-python
 db.collection.aggregate( [ { $sample: {size: 20} } ] )
-```
+```python
 
 if you need to select random documents with specific criteria, you can use it with `$match` opperator
 

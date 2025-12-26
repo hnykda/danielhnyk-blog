@@ -26,7 +26,7 @@ export default async function PostPage({ params }: PageProps) {
 
   try {
     // Dynamic import of the MDX file
-    const post = await import(`../../../content/${slug}.mdx`);
+    const post = await import(`../../../../content/${slug}.mdx`);
     const { default: Content, metadata } = post;
 
     return (
@@ -65,7 +65,7 @@ export async function generateMetadata({ params }: PageProps) {
   const { slug } = await params;
 
   try {
-    const post = await import(`../../../content/${slug}.mdx`);
+    const post = await import(`../../../../content/${slug}.mdx`);
     return {
       title: `${post.metadata.title} | Daniel Hnyk`,
       description: post.metadata.title,

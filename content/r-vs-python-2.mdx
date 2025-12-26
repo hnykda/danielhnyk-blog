@@ -58,7 +58,7 @@ gc()
 virtual/shared mem:  97KB/34KB <- correct, ~ 3.2GB
 ```
 but for Python:
-```
+```python
 # virtual/shared mem:  267MB,37KB (Ipython takes a lot, otherwise 97KB for vanila Python REPL)
 import numpy as np
 # virtual/shared mem:  357MB,52MB
@@ -72,7 +72,7 @@ del s
 so generating a Matrix of size 3e7 x 20 takes 6 times faster in Python and it needs only half the memory needed in R. 
 
 # Logistic regression
-```
+```bash
         init_data = data.frame(matrix(rnorm(N*NCOL), ncol=NCOL))
         test_ratio = 0.7
         test_split_n = round(N*test_ratio)
@@ -86,7 +86,7 @@ lr <- glm(y_train~., data=x_train)
 the above exploded with RAM and swapped because it went over 16 GB, than garbage collected back to 7.1GB, than swapped to 29GB/13.4GB making the whole PC unusable and settled down on using about 2% of CPU (single core of course), while the status is Degraded. Stopped after 5 minutes of nothing (for scikit-learn 84 seconds with prediction). CTRL+C didn't work, had to kill it from the command line.
 
 For `1e7`:
-```
+```bash
 # 3.6/3.6GB
 lr <- glm(y_train~., data=x_train)  # 69 seconds
 # 6.8GB/6.7GB

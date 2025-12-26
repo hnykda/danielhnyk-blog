@@ -12,7 +12,7 @@ This is my attempt to create a guide which would give you the most value with th
 Kubernetes is orchestrating your services, which have some specific responsibility. Orchestrate means that it schedules them on some cluster (which is backed by some virtual machines) and monitor them appropriately. 
 
 Kubernetes has an API which you can use to control it. The most important parts are the objects it exposes, nicely documented [here](https://kubernetes.io/docs/concepts/#kubernetes-objects). The object definition is usually defined by some yaml, e.g. for a service, you would do:
-```
+```python
 kind: Service  # the type of the object
 apiVersion: v1
 metadata:  # the important stuff
@@ -39,7 +39,7 @@ There are gazilion other objects like Job, CronJob, Ingress etc., but you can ea
 
 If you have an app, you usually define it as a combination of deployment (what's going on) and services ("how it's gonna talk to each other and to the clients"). You would therefore end up with something like the following:
 
-```
+```python
 apiVersion: apps/v1 
 kind: Deployment
 metadata:
@@ -82,7 +82,7 @@ Every app or "stuff on cluster" can be described as a set of these yamls then. *
 OK, you have these yamls. Now imagine that you have different environments, say, staging and production. On production, you want to expose the nginx to the outer world, but in staging you don't. Or you want to set different ports in each env, or different image. You would therefore have to maintain two sets of these yamls, duplicating the code for both and very likely going mad from the errors caused by this two sets of the truth. 
 
 That's why some tools come into play, such as [helm](https://helm.sh/). You don't store your configuration in plain nice yamls anymore, but instead put some templating in them. So from the service above, you may do something like this:
-```
+```python
 kind: Service  
 apiVersion: v1
 metadata:  
@@ -145,7 +145,7 @@ and that's it. That's all the stack you need.
 Nowyou have all the standard tools I use on my clusters. So you can get rollin'. Here are my most common commands (covers more than 95% of what I use):
 
 ### kubectl
-```
+```bash
 # get objects of some types living in the cluster, add `-o yaml` to get their yamls
 # object-type is e.g. `pods`, `services`, `deployments`, ...
 kubectl get {object-type}

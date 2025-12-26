@@ -25,13 +25,13 @@ intl.so
 mcrypt.so
 pdo_sqlite.so
 sqlite3.so
-```
+```python
 
 and also edit this line:
 
 ```language-bash
 open_basedir = /var/www:/tmp/:/var/www/owncloud/:/usr/share/webapps/owncloud/:/etc/webapps/owncloud/
-```
+```python
 
 then generate a certificates (thanks to [this guy](https://blog.eldajani.net/arch-linux-owncloud-with-nginx/)):
 ```language-bash
@@ -44,7 +44,7 @@ openssl req -new -x509 -nodes -sha1 -days 3650 -key server.key > server.crt
 openssl x509 -noout -fingerprint -text < server.crt > server.info
 cat server.crt server.key > server.pem
 chmod 400 server.key server.pem
-```
+```python
 
 # Configuration of nginx
 

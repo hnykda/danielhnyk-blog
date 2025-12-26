@@ -11,7 +11,7 @@ I had decided moving from unmaintained and old `rdiff-backup` to quite new and m
 I will not go into big details here, since this was done very well on [DigitalOcean](https://www.digitalocean.com/community/tutorials/how-to-use-duplicity-with-gpg-to-securely-automate-backups-on-ubuntu). Just don't forget that from two keys you create with `gpg` you need to use the private key denoted as `sub` in `gpg --list-keys`. This is needed just for the first time you make a backup e.g. by this command:
 ```language-bash
 duplicity -v5 --encrypt-key 6B5xxxx2  /dirs/to/backup rsync://endpoint//place/to/do/backup/on/remote/host
-```
+```python
 
 ## Bugs and caveats
 This part is relevant to this configuration of my stack:
@@ -32,7 +32,7 @@ Cipher: IDEA, 3DES, CAST5, BLOWFISH, AES, AES192, AES256, TWOFISH,
         CAMELLIA128, CAMELLIA192, CAMELLIA256
 Hash: SHA1, RIPEMD160, SHA256, SHA384, SHA512, SHA224
 Compression: Uncompressed, ZIP, ZLIB, BZIP2
-```
+```python
 and duplicity `duplicity 0.7.06` and latest Arch Linux up to this date. 
 
 The first backup went well, but the second one wasn't possible to do because of some stupid error. I found that this is a bug and can be solved by:
@@ -40,17 +40,17 @@ The first backup went well, but the second one wasn't possible to do because of 
 ```language-bash
 pinentry-program /usr/bin/pinentry
 allow-loopback-pinentry
-```
+```python
 and this to `~/.gnupg/gpg.conf`:
 ```language-bash
 use-agent 
 pinentry-mode loopback 
-```
+```python
 then you should be able to do the backup just with passing your passphrase (or setting it as env variable) by this:
 
 ```language-bash
 duplicity /dir/to/backup rsync://endpoing//dir/where/to/save/backup
-```
+```python
 
 I also recommend to set up lower priority for this process by prepending the command above by `nice -n 10`. 
 
@@ -58,7 +58,7 @@ I also recommend to set up lower priority for this process by prepending the com
 First you should try to find the file you are looking for by this command:
 ```language-bash
 duplicity list-current-files rsync://endpoint/backups|grep my/file
-```
+```python
 and then, if you find it, restore it with:
 ```
 duplicity restore --file-to-restore file/to/restore/without/leading/slash rsync://endpoint/backups where/to/save/locally

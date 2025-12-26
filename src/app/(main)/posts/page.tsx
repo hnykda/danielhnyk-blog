@@ -9,7 +9,7 @@ function formatDate(dateStr: string): string {
   });
 }
 
-export default function HomePage() {
+export default function PostsPage() {
   const posts = getAllPosts();
 
   return (

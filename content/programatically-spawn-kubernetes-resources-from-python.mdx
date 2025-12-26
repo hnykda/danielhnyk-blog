@@ -20,7 +20,7 @@ metadata:
 ```
 followed by:
 
-```
+```bash
 # creates the service account
 $ kubectl create -f sa.yaml
 
@@ -28,14 +28,14 @@ $ kubectl create -f sa.yaml
 $ kubectl create clusterrolebinding some-nice-name-cluster-role --clusterrole=cluster-admin --serviceaccount=default:some-nice-name
 ```
 then to find out the `API_KEY`:
-```
+```bash
 kubectl describe secrets $(kubectl get secrets | grep pyxecutor | cut -f1 -d ' ')| grep "^token"|  cut -d':' -f 2
 ```
 
 
 and then I could do:
 
-```
+```python
 # job.yaml
 apiVersion: batch/v1
 kind: Job

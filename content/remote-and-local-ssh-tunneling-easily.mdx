@@ -12,25 +12,25 @@ When you run something on the remote server and you need to tunnel from your cli
 
 ```language-bash
 ssh -N -f -L your_wished_ip:your_wished_port:ip_on_the_server_where_the_service_is_running:port_on_the_server_where_the_service_is_running username_on_the_server@address_of_the_server
-```
+```python
 
 so e.g. I am running Jupyter notebook on the server on the address `localhost` and port `3456` and want to tunnel there from my computer on `192.168.0.222` and port `9843`. Then the command is:
 
 ```language-bash
 ssh -N -f -L 192.168.0.222:9843:localhost:3456 username@ip.address.of.server
-```
+```python
 
 # Remote with `-R` switch
 It's exactly opposite as it is with the `-L` switch. This is a bit confusing, but make sense. **As a mnemonic technique, the switch tells you who is specified first**. So let say that I want to share my IPython notebook running on `localhost:8888` on my client with someone else through my server. I would do this:
 
 ```language-bash
 ssh -N -R localhost:8889:localhost:8888 serverSSHProfile
-```
+```python
 
 this will allow someone else to tunnel to my webserver using the `-L` switch as this:
 ```language-bash
 ssh -N -f -L localhost:8881:localhost:8889 username@ip.address.of.server
-```
+```python
 and she could open web browser on `localhost:8881` to see my IPython notebook. 
 
 ## One more thing

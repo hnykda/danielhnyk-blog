@@ -64,7 +64,7 @@ INSTALLED_APPS += ( "djrill",)
 MANDRILL_API_KEY = "j4kdhyYx7w" # EXAMPLE of your mandrill key
 EMAIL_BACKEND = "djrill.mail.backends.djrill.DjrillBackend"
 DEFAULT_FROM_EMAIL = "you@example.com" # fill by your email of course
-```
+```python
 
 Syncing, cache and routing
 --------------------------
@@ -74,19 +74,19 @@ Since now you need to specify settings file when using `manage.py`. Let's `syncd
 ```language-bash
 python manage.py migrate --settings=<project_name>.settings.spirit
 python manage.py migrate --settings=<project_name>.settings.mysite
-```
+```python
 
 then run:
 
 ```language-bash
 python manage.py createcachetable spirit_cache --settings=<project_name>.settings.spirit
-```
+```python
 
 and finally:
 
 ```language-bash
 python manage.py collectstatic --settings=<project_name>.settings.spirit
-```
+```python
 
 nGinx and Gunicorn
 ------------------

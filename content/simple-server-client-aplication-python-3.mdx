@@ -87,7 +87,7 @@ def start_server():
     soc.close()
 
 start_server()
-```
+```python
 
 Code for client is very simple:
 
@@ -140,7 +140,7 @@ for x, y in data:
 
 # end connection by sending this string
 soc.send(b'--ENDOFDATA--')
-```
+```python
 and the server side is as follows (`start_server` function is same as above):
 
 ```language-python

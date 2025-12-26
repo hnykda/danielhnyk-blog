@@ -26,7 +26,7 @@ $ gcloud compute instances create example-instance \
       --zone us-central1-a \
       --machine-type f1-micro \
       --image ubuntu-15-04
-```
+```python
 
 there are additional tweaks, like changing machine type or an installed image. You can find this options when you try to create engine using browser. An example creates the least powerful engine with Ubuntu 15.04 in US zone.
 
@@ -37,7 +37,7 @@ $ for i in {1..8}; do gcloud compute instances create comp$i \
       --zone us-central1-f \                
       --machine-type f1-micro \             
       --image ubuntu-15-04; done
-```
+```python
 
 why 8? Because it is a limit of engines on every zone Google offers. There are currently 3 zones: `asia`, `europe` and `us`. So now you can add additional 8 engines to rest of the zones by:
 
@@ -51,7 +51,7 @@ $ for i in {1..8}; do gcloud compute instances create comp$i \
       --zone europe-west1-c \                
       --machine-type f1-micro \             
       --image ubuntu-15-04; done
-```
+```python
 
 and that's it! Now you have 24 VMs for free for a pretty long time! It is the maximum you can have with Google Compute with the free tier.
 
