@@ -1,9 +1,49 @@
 import type { Metadata } from "next";
 import "./globals.css";
 
+const BASE_URL = "https://danielhnyk.cz";
+
 export const metadata: Metadata = {
-  title: "Daniel Hnyk",
-  description: "Personal blog",
+  metadataBase: new URL(BASE_URL),
+  title: {
+    default: "Daniel Hnyk",
+    template: "%s | Daniel Hnyk",
+  },
+  description:
+    "Personal blog of Daniel Hnyk, a Prague-based engineer writing about tech, parenting, and whatever else won't leave his head.",
+  keywords: [
+    "Daniel Hnyk",
+    "software engineering",
+    "blog",
+    "Prague",
+    "tech",
+    "parenting",
+  ],
+  authors: [{ name: "Daniel Hnyk" }],
+  creator: "Daniel Hnyk",
+  openGraph: {
+    type: "website",
+    locale: "en_US",
+    url: BASE_URL,
+    siteName: "Daniel Hnyk",
+    title: "Daniel Hnyk",
+    description:
+      "Personal blog of Daniel Hnyk, a Prague-based engineer writing about tech, parenting, and whatever else won't leave his head.",
+  },
+  twitter: {
+    card: "summary",
+    creator: "@hnykda",
+    title: "Daniel Hnyk",
+    description:
+      "Personal blog of Daniel Hnyk, a Prague-based engineer writing about tech, parenting, and whatever else won't leave his head.",
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
+  alternates: {
+    canonical: BASE_URL,
+  },
 };
 
 export default function RootLayout({
