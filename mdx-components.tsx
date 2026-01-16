@@ -1,6 +1,5 @@
 import React from "react";
 import Image from "next/image";
-import CodeBlock from "@/components/CodeBlock";
 
 type MDXComponents = {
   [key: string]: React.ComponentType<any>;
@@ -64,29 +63,8 @@ export function useMDXComponents(components: MDXComponents): MDXComponents {
         {children}
       </blockquote>
     ),
-    // Inline code styling (code blocks are handled by pre/CodeBlock)
-    code: ({ children, className }) => {
-      // If it has a language class, it's a code block - render without inline styles
-      if (className?.startsWith("language-")) {
-        return <code className={className}>{children}</code>;
-      }
-      // Inline code gets styled
-      return (
-        <code
-          style={{
-            background: "#f3f4f6",
-            padding: "0.125rem 0.375rem",
-            borderRadius: "0.25rem",
-            fontSize: "0.875rem",
-            fontFamily: '"JetBrains Mono", ui-monospace, monospace',
-          }}
-        >
-          {children}
-        </code>
-      );
-    },
-    // Code blocks with syntax highlighting
-    pre: ({ children }) => <CodeBlock>{children}</CodeBlock>,
+    // Code blocks - rehype-highlight handles syntax highlighting at build time
+    pre: ({ children }) => <pre>{children}</pre>,
     a: ({ href, children }) => (
       <a
         href={href}

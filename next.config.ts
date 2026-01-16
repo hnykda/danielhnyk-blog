@@ -1,6 +1,6 @@
 import type { NextConfig } from "next";
 import createMDX from "@next/mdx";
-import rehypePrism from "rehype-prism-plus";
+import rehypeHighlight from "rehype-highlight";
 
 const nextConfig: NextConfig = {
   output: "export",
@@ -11,7 +11,7 @@ const nextConfig: NextConfig = {
 
 const withMDX = createMDX({
   options: {
-    rehypePlugins: [[rehypePrism, { ignoreMissing: true }]],
+    rehypePlugins: [rehypeHighlight],
   },
 });
 

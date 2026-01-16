@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import PlausibleProvider from "next-plausible";
 import "./globals.css";
+import "highlight.js/styles/github.css";
 
 const BASE_URL = "https://danielhnyk.cz";
 
