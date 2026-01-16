@@ -72,6 +72,7 @@ export default function RootLayout({
           domain="danielhnyk.cz"
           customDomain="https://plan.danielhnyk.cz"
           selfHosted
+          trackOutboundLinks
         >
         {children}
         <div
