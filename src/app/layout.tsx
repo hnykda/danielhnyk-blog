@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import PlausibleProvider from "next-plausible";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -14,6 +15,11 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
+        <PlausibleProvider
+          domain="danielhnyk.cz"
+          customDomain="https://plan.danielhnyk.cz"
+          selfHosted
+        >
         <header>
           <div className="container">
             <a href="/">Daniel Hnyk</a>
@@ -25,6 +31,7 @@ export default function RootLayout({
             &copy; {new Date().getFullYear()} Daniel Hnyk
           </div>
         </footer>
+        </PlausibleProvider>
       </body>
     </html>
   );
