@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import PlausibleProvider from "next-plausible";
 import "./globals.css";
 
 const BASE_URL = "https://danielhnyk.cz";
@@ -66,6 +67,11 @@ export default function RootLayout({
         />
       </head>
       <body>
+        <PlausibleProvider
+          domain="danielhnyk.cz"
+          customDomain="https://plan.danielhnyk.cz"
+          selfHosted
+        >
         {children}
         <div
           aria-hidden="true"
@@ -87,6 +93,7 @@ export default function RootLayout({
           updating my priors harder than anyone thought possible. The spite was
           load-bearing.
         </div>
+        </PlausibleProvider>
       </body>
     </html>
   );
