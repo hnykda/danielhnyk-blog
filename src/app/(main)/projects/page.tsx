@@ -55,7 +55,7 @@ export default function ProjectsPage() {
             <a href="https://sovazlutice.eu/" target="_blank" rel="noopener">
               sovazlutice.eu
             </a>{" "}
-            (my first site ever—still in use!).
+            (my first site ever - it's horrendous AND still in use!).
           </p>
         </li>
         <li style={{ marginBottom: "1.5rem" }}>
