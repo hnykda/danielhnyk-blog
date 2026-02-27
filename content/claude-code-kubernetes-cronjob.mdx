@@ -1,0 +1,208 @@
+export const metadata = {
+  title: "Running Claude Code as a Kubernetes Job",
+  slug: "claude-code-kubernetes-cronjob",
+  date: "2026-02-26",
+  tags: ["IT", "AI Engineering"],
+};
+
+*Part 1 of a series on using Claude Code as a production runtime. Originally published on [everyrow.io](https://everyrow.io/blog/claude-code-kubernetes-cronjob).*
+
+---
+
+We run Claude Code in Kubernetes for a set of long-running marketing CronJobs. One scans communities like subreddits and support forums, another searches for news and generates relevant content, and the last one optimizes SEO for [everyrow.io](https://everyrow.io), our data processing product.
+
+This originally sounded like a terrible idea, but after running it for a few months, we think it's a genuinely valid engineering approach - for the right kind of work. Everything is a tradeoff, and this series is a short journey through the practical engineering, actual use cases, and some beautiful metaphysics.
+
+Our infrastructure for [everyrow.io](https://everyrow.io) and [futuresearch.ai](https://futuresearch.ai/) runs on Google Kubernetes Engine, so that's where we'll start - here's what you need to make Claude Code work as a K8s CronJob, gotchas included.
+
+## Project Structure
+
+For reasons explained in the next posts, we need both Python and Node. Claude is excellent at writing Python glue code (Python has been preparing for this time all its life), and we write in Python as well. Whenever Claude produces something useful for itself, we ask it to add it to the `lib` module for future reference. More on that later.
+
+We put together a minimal runnable example at [github.com/futuresearch/example-cc-cronjob](https://github.com/futuresearch/example-cc-cronjob) - a Dockerfile, entrypoint, a trivial skill, and both a plain CronJob manifest and a Helm chart. Everything below is from our production setup, but if you just want to get something running, start there.
+
+## The Dockerfile
+
+All right, let's start with a pretty standard Dockerfile:
+
+```dockerfile
+# Build stage: install Python dependencies with uv
+FROM ghcr.io/astral-sh/uv:python3.13-bookworm AS build
+WORKDIR /app
+COPY pyproject.toml uv.lock ./
+RUN uv sync --no-sources
+
+# Runtime: Python + Node.js (Claude CLI needs Node)
+FROM nikolaik/python-nodejs:python3.13-nodejs22
+
+# jq for our "monitoring stack", librsvg2-bin for SVG→PNG, gh for PR creation
+RUN apt-get update \
+    && apt-get install -y jq librsvg2-bin git-lfs gh \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN useradd -m -s /bin/bash claudie
+USER claudie
+
+# Install Claude CLI as non-root
+RUN curl -fsSL https://claude.ai/install.sh | bash
+
+# Skip the interactive onboarding. Claude CLI won't start without this.
+RUN echo '{"hasCompletedOnboarding": true}' > /home/claudie/.claude.json
+
+# Copy venv from build stage, copy project files, set PATH
+USER root
+COPY --from=build /app/.venv /home/claudie/.venv
+COPY . /home/claudie/claudie
+COPY deploy/entrypoint.sh /home/claudie/entrypoint.sh
+RUN chown -R claudie:claudie /home/claudie
+USER claudie
+ENV PATH="/home/claudie/.venv/bin:/home/claudie/.local/bin:$PATH"
+CMD ["/home/claudie/entrypoint.sh"]
+```
+
+A couple of things to notice:
+1. We use multistage, building Python deps and copying them later - not strictly necessary but a nice optimization space-wise.
+2. Claude Code requires Node.js - it's a Node app under the hood, hence the `python-nodejs` base image.
+3. The `hasCompletedOnboarding` line: without it, Claude tries to walk you through a setup wizard. Given this runs in a terminal without TTY, this is obviously not what you want, hence this mini-hack.
+
+## The Entrypoint
+
+The entrypoint is where you set up prerequisites for your workflow - credentials for MCP servers, SSH keys, and so on. In our case, one of the more important ones is `gh` (GitHub CLI), since we use GitHub as the place to store results and create PRs (more on that in the later posts).
+
+The actual Claude Code process is spawned like this:
+
+```bash
+claude -p \
+  --dangerously-skip-permissions \
+  --verbose \
+  --output-format stream-json \
+  -- "$SKILL_PROMPT"
+```
+
+Let's unpack this:
+1. `-p` simply means non-interactive mode.
+2. `--dangerously-skip-permissions` is what it sounds like - the agent can do whatever it wants. We appreciate this is controversial and that sysadmins are screaming somewhere, but empirically, we haven't seen anything bad happen with the tasks we run.
+3. `--verbose` together with `--output-format stream-json` gets the output out of Claude Code. By default, it only outputs the final message and you have no visibility into what it's doing. These two parameters make sure everything gets logged to `stdout`. There is a *lot* of detail - see the next section for filtering.
+4. The `--` separator before the prompt is important if you use `--add-dir`. Without it, the prompt gets consumed as another directory path.
+
+The `SKILL_PROMPT` is literally something like `execute scan-and-classify skill`, optionally with `--add-dir <some-path>` if you need additional directories.
+
+## Filtering logs with `jq`
+
+When Claude runs with `--output-format stream-json --verbose`, you get one JSON object per line - every thought, every tool call, every result... You'll want to filter this to something more sensible. We pipe it to `jq` and by trial and error found the following to be a sensible tradeoff between verbosity and volume:
+
+```bash
+claude ... | tee "$RAW_LOG" | jq --unbuffered -r '
+if .type == "assistant" then
+  .message.content[]? |
+  if .type == "text" then ">>> " + .text[0:5000]
+  elif .type == "tool_use" then "[" + .name + "] " + ((.input | tostring)[0:3000])
+  else empty end
+elif .type == "result" then
+  "[done] " + (.result // "complete")[0:5000]
+else empty end'
+```
+
+`>>> ` for Claude's thoughts. `[Read]` or `[Bash]` for tool calls. `[done]` for completion.
+
+The raw JSONL goes to `/tmp/` for when you need to debug.
+
+## Timeout - The Safety Net
+
+If you open the example entrypoint in the repository, you'll notice we wrap the execution with `timeout 10800 bash -c 'claude ...'`. Why isn't the Kubernetes job's `activeDeadlineSeconds` enough? Because we have a catch-all mechanism if things go wrong. Three hours (10800 seconds) is the timeout just for the Claude Code part. If Claude hangs - and it will, eventually - `timeout` kills it with exit code 124, and then a second Claude instance wakes up to collect whatever was created so far for debugging:
+
+```bash
+if [ "$CLAUDE_EXIT" -eq 124 ]; then
+    timeout 600 claude -p --dangerously-skip-permissions -- \
+      "The pipeline timed out. Check what partial results exist.
+       Write a report. Commit to a branch. Create a PR with [PARTIAL] prefix."
+fi
+```
+
+So... the CronJob spawns backup Claudes to clean up after a failed Claude. Not sure if this is robust engineering or a cry for help (both?), but it works.
+
+## The CronJob
+
+The CronJob manifest is relatively simple:
+
+```yaml
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: claudie-scan-classify
+spec:
+  schedule: "0 8 * * 1-5"          # 8am UTC weekdays
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      activeDeadlineSeconds: 14400  # 4 hours - longer than the Claude timeout
+      template:
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: claudie
+              image: <your container registry>/claudie:latest
+              env:
+                - name: SKILL_NAME
+                  value: "scan-and-classify"
+              envFrom:
+                - secretRef:
+                    name: claudie-secrets
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 512Mi
+                limits:
+                  cpu: 2
+                  memory: 4Gi
+```
+
+That's the whole thing. `SKILL_NAME` tells the entrypoint which skill to run. `concurrencyPolicy: Forbid` prevents overlap. Secrets go in via `envFrom` - the Anthropic API key, GitHub token, and whatever MCP servers need. We have three of these (scan, news, SEO) with different schedules. We wrap this in a lightweight Helm template, so adding a new skill is just an entry in `values.yaml`:
+
+```yaml
+jobs:
+  - name: daily-news
+    skillName: daily-news-content
+    schedule: "0 14 * * 1-5"  # Weekdays only (Mon-Fri)
+
+  - name: scan-classify
+    skillName: scan-and-classify
+    schedule: "0 8 * * 1-5"  # Weekdays only (Mon-Fri)
+
+  - name: seo-pipeline
+    skillName: seo-pipeline
+    schedule: "0 10 * * 1,3,5"  # Mon/Wed/Fri at 10:00 UTC
+```
+
+## GitHub as a Database
+
+One pattern worth calling out: we use GitHub as our entire storage and delivery layer. Every pipeline run creates a branch, commits results, pushes, and opens a PR. The PR is the output - our cofounder opens it, reads a markdown report, and acts on it. There's no database, no dashboard, no custom UI. Much more on this in the later posts.
+
+To make this work from a container, the entrypoint sets up git and the GitHub CLI before Claude starts:
+
+```bash
+git config --global user.email "claudie-bot@example.com"
+git config --global user.name "Claudie Bot"
+
+mkdir -p ~/.ssh
+echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
+chmod 600 ~/.ssh/id_ed25519
+ssh-keyscan github.com >> ~/.ssh/known_hosts 2>/dev/null
+```
+
+`SSH_PRIVATE_KEY` is a deploy key with write access to the repo. `GH_TOKEN` (passed as an env var) lets `gh` create PRs. Both go into the Kubernetes secret. The skill then just tells Claude to commit and create a PR - it knows how to use `git` and `gh` out of the box.
+
+Our [example repo](https://github.com/futuresearch/example-cc-cronjob) demonstrates this: the `add-numbers` skill computes a result, writes it to a file, commits to a branch, and opens a PR. A toy example, but it's the same pattern our production pipelines use every day.
+
+## Should You Do This?
+
+Probably not for anything important. I would resign if we used this for a payment pipeline. But for discovering that someone on `r/salesforce` needs help deduplicating 5000 company records? Take my money.
+
+The next post covers what actually runs inside these CronJobs - specifically, why a 398-line markdown file replaced what would normally be a relatively non-trivial orchestration job.
+
+*We build [everyrow.io](https://everyrow.io) - tools for semantic deduplication, entity resolution, and qualitative ranking of datasets. This pipeline is how we find people who need them.*
+
+---
+
+*Next: [Using Claude Code as a Workflow Engine](/claude-code-workflow-engine/)*
