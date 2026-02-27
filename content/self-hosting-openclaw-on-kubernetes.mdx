@@ -1,0 +1,181 @@
+export const metadata = {
+  title: "Self-hosting OpenClaw on Kubernetes",
+  slug: "self-hosting-openclaw-on-kubernetes",
+  date: "2026-02-27",
+  tags: ["IT", "devops", "AI"],
+};
+
+I've been running [OpenClaw](https://openclaw.ai) — an open-source AI assistant platform — on a single-node Kubernetes cluster for a few months now. It connects to Mattermost, has browser automation, and runs various tools. Here's how the deployment works, with a simplified example you can adapt.
+
+## Why self-host
+
+OpenClaw has a hosted offering, but I wanted full control over the data, integrations, and the ability to bolt on extra tools. The macOS app works great as a client — it connects to the self-hosted gateway via WebSocket, so you get the nice UI without running the heavy stuff locally.
+
+## The setup
+
+The core idea: extend the official Docker image with extra tools, deploy with Helm, and let CI handle the rest.
+
+```
+server-files/
+├── openclaw-custom/
+│   ├── Dockerfile          # Extended image
+│   ├── patches/            # Upstream PR fixes (more on this later)
+│   └── init-tools.sh       # Credential setup from env vars
+├── k8s/
+│   ├── helmfile.yaml       # Deployment orchestration
+│   ├── charts/openclaw/    # Vendored helm chart
+│   └── values/openclaw.yaml.gotmpl
+└── .woodpecker/
+    └── openclaw-custom.yaml  # CI pipeline
+```
+
+## The custom Docker image
+
+The official image is great but I wanted things like `gh` CLI, `kubectl`, `ffmpeg`, OCR, Python tools, etc. The Dockerfile is straightforward — start from the official image, install packages:
+
+```dockerfile
+ARG OPENCLAW_VERSION=2026.2.26
+FROM ghcr.io/openclaw/openclaw:${OPENCLAW_VERSION}
+
+USER root
+
+# System packages
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    postgresql-client curl ca-certificates \
+    jq ffmpeg rsync sqlite3 \
+    poppler-utils pandoc \
+    tesseract-ocr tesseract-ocr-eng \
+    && rm -rf /var/lib/apt/lists/*
+
+# gh CLI
+ARG GH_VERSION=2.86.0
+RUN curl -fsSL https://github.com/cli/cli/releases/download/v${GH_VERSION}/gh_${GH_VERSION}_linux_amd64.tar.gz \
+    | tar -xz -C /tmp && mv /tmp/gh_${GH_VERSION}_linux_amd64/bin/gh /usr/local/bin/
+
+# kubectl (for managing a sandbox namespace)
+ARG KUBECTL_VERSION=1.35.0
+RUN curl -fsSL https://dl.k8s.io/release/v${KUBECTL_VERSION}/bin/linux/amd64/kubectl -o /usr/local/bin/kubectl \
+    && chmod +x /usr/local/bin/kubectl
+
+# Python tools via uv
+RUN curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR=/usr/local/bin sh
+COPY pyproject.toml uv.lock /opt/openclaw-tools/
+RUN uv sync --frozen --project /opt/openclaw-tools --python 3.14
+
+USER 1000
+```
+
+## Helm chart and configuration
+
+I vendored the official OpenClaw helm chart and added RBAC for a sandbox namespace where the AI can manage its own Kubernetes workloads (create pods, deployments, etc.) without touching production.
+
+The values file uses SOPS-encrypted secrets and Go templates:
+
+```yaml
+image:
+  repository: registry.container-registry:5000/openclaw-custom
+  pullPolicy: Always
+  # tag is set by CI: --set image.tag=sha-<commit>
+
+persistence:
+  enabled: true
+  size: 5Gi
+
+chromium:
+  enabled: true  # Headless browser sidecar for web automation
+
+openclaw:
+  timezone: Europe/Prague
+  configMode: merge  # Merge helm values with existing PVC config
+```
+
+The `configMode: merge` bit is important. On each deploy, the init container deep-merges Helm values into the existing config on the PVC. Helm values win on conflicts, but anything you configured in the OpenClaw UI (agents, model settings, etc.) persists across deploys. This means you should **not** put things in Helm values that you want to manage through the UI — only infrastructure requirements like `gateway.mode` or `browser.cdpUrl`.
+
+### Environment variables and credentials
+
+OpenClaw doesn't use Kubernetes env vars in the traditional sense. Instead, you pass them via `configOverrides.env` in the chart values, and OpenClaw injects them into its own process environment at startup:
+
+```yaml
+configOverrides:
+  env:
+    GH_TOKEN: "{{ .StateValues.secrets.openclaw.ghToken }}"
+    SOME_API_KEY: "{{ .StateValues.secrets.openclaw.someKey }}"
+```
+
+This works for tools that read env vars. For tools that need config files (like file-based keyrings), I wrote an `init-tools.sh` script that creates those files from env vars on startup.
+
+## CI/CD with Woodpecker
+
+The pipeline is minimal — build the image, deploy with helmfile:
+
+```yaml
+when:
+  - event: push
+    branch: main
+    path:
+      include:
+        - openclaw-custom/**
+        - k8s/values/openclaw.yaml.gotmpl
+
+steps:
+  - name: build
+    image: woodpeckerci/plugin-docker-buildx:5-insecure
+    settings:
+      repo: registry.container-registry:5000/openclaw-custom
+      tag: sha-${CI_COMMIT_SHA:0:8}
+      platforms: linux/amd64
+      context: openclaw-custom
+
+  - name: deploy
+    depends_on: [build]
+    image: ghcr.io/helmfile/helmfile:v1.2.3
+    commands:
+      - echo "$HERA_KUBECONFIG" | base64 -d > /tmp/kubeconfig
+      - export KUBECONFIG=/tmp/kubeconfig
+      - echo "$AGE_SOPS_SECRET_KEY" > /tmp/age-key.txt
+      - export SOPS_AGE_KEY_FILE=/tmp/age-key.txt
+      - cd k8s && helmfile -l name=openclaw sync \
+          --state-values-set apps.openclaw.enabled=true \
+          --set image.tag=sha-${CI_COMMIT_SHA:0:8}
+```
+
+Push to main → image builds → helmfile deploys. The image tag is always the commit SHA, so you can trace exactly what's running.
+
+I intentionally keep the OpenClaw release **disabled by default** in helmfile (`apps.openclaw.enabled: false`). The main deploy pipeline handles other services; OpenClaw only deploys when its own files change, via this dedicated pipeline.
+
+## Daily backups
+
+The data lives on a PVC (persistent volume), but PVCs aren't backed up by default. I run a daily systemd timer on the host that:
+
+1. **Dumps PostgreSQL** — `pg_dumpall` against the database pod, keeps 3 most recent dumps
+2. **Exports Kubernetes manifests** — all resources to YAML, so I can recreate the cluster state
+3. **Backs up to Google Drive** — using [Duplicacy](https://duplicacy.com/) with a retention policy (all for 7 days, daily for 30, weekly for a year)
+4. **Pushes a metric** — `backup_last_success_timestamp_seconds` to VictoriaMetrics, so I get alerted if backups stop
+
+The backup script runs as a systemd service with a timer:
+
+```ini
+[Timer]
+OnCalendar=*-*-* 02:00:00
+Persistent=true
+```
+
+`Persistent=true` means it catches up if the machine was down at 2 AM.
+
+For the PVC data specifically — config, sessions, chat history — the main protection is that the PVC survives pod restarts and redeployments. A full restore would mean restoring the Duplicacy backup (which includes the host filesystem where PVC data lives on a single-node cluster) and the PostgreSQL dump.
+
+## Deployment strategy
+
+Single replica, `Recreate` strategy (not rolling). This is intentional — OpenClaw is a stateful gateway holding WebSocket connections (Mattermost bot, macOS app). Running two instances would cause duplicate bot messages and split state. The downtime during deploys is ~30-60 seconds, which is fine.
+
+## Things I got wrong along the way
+
+- **`configMode: merge` isn't obvious.** I initially put model configs in Helm values, which meant every deploy would overwrite what I'd changed in the UI.
+- **Container home is read-only.** The official image has `/home/openclaw` as read-only. Writable paths go to the PVC mount at `/home/openclaw/.openclaw`. This tripped me up with every tool that writes config files.
+- **OAuth tokens in Testing mode expire.** Google OAuth apps in "Testing" mode expire refresh tokens after 7 days of no use. Switching to "Production" mode in Google Cloud Console fixes it — the 100-user cap and "unverified" warning are irrelevant for personal use.
+
+## Wrapping up
+
+The setup is a bit over-engineered for a single-user instance, but it's nice having proper CI/CD, backups, and the ability to bolt on tools. The key win is that OpenClaw's `configMode: merge` lets you treat infrastructure config as code while keeping the interactive stuff in the UI.
+
+If you're thinking about self-hosting, the official Docker image is solid and you may not need a custom image at all. Start with `docker compose`, and only move to Kubernetes if you already have a cluster.

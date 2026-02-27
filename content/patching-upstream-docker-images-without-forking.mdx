@@ -1,0 +1,117 @@
+export const metadata = {
+  title: "Patching upstream Docker images without forking",
+  slug: "patching-upstream-docker-images-without-forking",
+  date: "2026-02-27",
+  tags: ["IT", "devops"],
+};
+
+I had a couple of small fixes for [OpenClaw](https://openclaw.ai) — 2-3 line changes each — that I'd submitted as PRs upstream. The PRs were in review, but I wanted to test them on my own deployment *now* rather than waiting for them to merge. Here's a lightweight pattern for applying patches to upstream Docker images without maintaining a full fork.
+
+## The situation
+
+My [custom OpenClaw image](/self-hosting-openclaw-on-kubernetes/) extends the official one with extra tools. The upstream image ships TypeScript source files and uses [jiti](https://github.com/unjs/jiti) for runtime transpilation — meaning you can patch `.ts` files directly without a build step. Both `git` and `patch` are already in the image.
+
+The fixes were trivial:
+- [**PR #27744**](https://github.com/openclaw/openclaw/pull/27744): Two lines — pass `payload.replyToId` instead of always using the thread root, so Mattermost replies go to the correct thread
+- [**PR #27754**](https://github.com/openclaw/openclaw/pull/27754): One line — pass a `requireMention` override so chatmode works correctly in channels
+
+I wanted to test these on my deployment to verify they actually fix the issues before the PRs merge. But maintaining a full fork for 3 lines of code felt absurd.
+
+## The approach
+
+Store `.patch` files in the repo, apply them with `git apply` during the Docker build.
+
+```
+openclaw-custom/
+├── Dockerfile
+└── patches/
+    ├── README.md
+    ├── 27744-mattermost-threading.patch
+    └── 27754-mattermost-chatmode.patch
+```
+
+The Dockerfile snippet:
+
+```dockerfile
+COPY patches/ /tmp/patches/
+RUN cd /app && \
+    for p in /tmp/patches/*.patch; do \
+      [ -e "$p" ] || continue; \
+      echo "Applying patch: $(basename $p)"; \
+      git apply "$p" || { echo "FAILED: $(basename $p)"; exit 1; }; \
+    done && \
+    rm -rf /tmp/patches
+```
+
+That's it. The `[ -e "$p" ] || continue` handles the edge case where the directory has no `.patch` files (just the README). `git apply` fails loudly if a patch doesn't apply — which is exactly what you want.
+
+## Generating patches
+
+The patches are generated from your fork, but you need to be careful. If you just `git diff main...my-branch`, you'll get all the upstream changes between the fork point and your branch tip, not just your fix.
+
+Instead, isolate your specific commit:
+
+```bash
+# Show just YOUR commit's changes against the file
+git show <your-commit-sha> -- path/to/file.ts \
+  > patches/12345-short-description.patch
+```
+
+This gives you a clean diff with just your changes and the right context lines.
+
+Then test it applies against the tagged version that's in the Docker image:
+
+```bash
+# Quick local test
+git show v2026.2.26:path/to/file.ts > /tmp/test.ts
+mkdir -p /tmp/test-repo/path/to && cp /tmp/test.ts /tmp/test-repo/path/to/file.ts
+cd /tmp/test-repo && git init && git add . && git commit -m init
+git apply /path/to/your.patch  # Should apply cleanly
+```
+
+Or just build the image — if `git apply` fails, the build fails.
+
+## The naming convention matters
+
+I name patches `<PR-number>-<short-description>.patch`. The PR number is the key — it tells you exactly where to check if the patch is still needed:
+
+```bash
+gh pr view 27744 --repo openclaw/openclaw --json state -q '.state'
+# MERGED → delete the patch
+# OPEN → keep it
+```
+
+## Version bumps
+
+When you bump the upstream version, patches may fail to apply if the surrounding code changed. The workflow:
+
+1. Bump the version in the Dockerfile
+2. Build — if it fails, a patch needs regeneration
+3. Check if the failing patch's PR merged in the new version (delete it if so)
+4. If not merged, regenerate the patch against the new version
+
+I bumped from v2026.2.25 to v2026.2.26 and both patches needed line number updates (the upstream refactored the file), but the actual context was identical. Regenerated in 2 minutes.
+
+## Why not other approaches?
+
+I considered several alternatives:
+
+| Approach | Why not |
+|----------|---------|
+| Git submodule of fork | Overkill for 3-line changes; submodules are painful |
+| Clone fork in Dockerfile | Slow (network fetch), caching issues, complex for tiny changes |
+| Copy entire patched files | Loses track of what changed; version bumps require regenerating whole files |
+| `sed` in Dockerfile | Fragile, no context-awareness, unreadable for anything non-trivial |
+| Build from fork source | Completely different build process, massive build time |
+
+`git apply` hits the sweet spot: it's contextual (fails if surrounding code changed), reviewable (it's a standard diff), and requires zero extra tooling.
+
+## The full lifecycle
+
+1. Fix bug in upstream repo, open PR
+2. Generate patch against the version you're running
+3. Add `.patch` file, push — CI builds and deploys
+4. PR merges upstream → delete the patch, bump version
+5. If other patches break on version bump → regenerate or check if they merged too
+
+The system is intentionally friction-ful in the right places. When a patch can't apply, it forces you to check whether the PR merged or the code changed — both things you should know about before deploying.
