@@ -260,3 +260,44 @@ pre > code {
   font-size: 0.875em;
 }
 
+
+/* GitHub-style markdown tables */
+article table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1.5rem 0;
+  font-size: 0.95rem;
+}
+
+article table th,
+article table td {
+  padding: 0.75rem 1rem;
+  text-align: left;
+  border: 1px solid #e5e7eb;
+}
+
+article table th {
+  background: #f9fafb;
+  font-weight: 600;
+}
+
+article table tr:nth-child(even) {
+  background: #f9fafb;
+}
+
+article table tr:hover {
+  background: #f3f4f6;
+}
+
+@media (max-width: 768px) {
+  article table {
+    font-size: 0.85rem;
+    display: block;
+    overflow-x: auto;
+  }
+
+  article table th,
+  article table td {
+    padding: 0.5rem 0.75rem;
+  }
+}
