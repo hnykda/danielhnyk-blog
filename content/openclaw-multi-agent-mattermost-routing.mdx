@@ -1,0 +1,152 @@
+export const metadata = {
+  title: "Multi-Agent Routing in OpenClaw with Mattermost",
+  slug: "openclaw-multi-agent-mattermost-routing",
+  date: "2026-02-28",
+  tags: ["IT", "AI", "devops"],
+};
+
+I run [OpenClaw](https://openclaw.ai) self-hosted on Kubernetes with [Mattermost](https://mattermost.com) as the primary chat surface. Over time, I've set up three separate AI agents — each with its own personality, workspace, and purpose — all running in one gateway process. Getting the routing right was non-trivial, so here's what I learned.
+
+## The Setup
+
+Three agents, three Mattermost bots, one server:
+
+- **Jack** — personal AI assistant (the default agent). Lives in most channels, handles everything from coding tasks to calendar management.
+- **Housie** — household assistant for shared living. Has its own dedicated channel (`#housie-bot`) and answers questions about house rules, chores, and shared logistics.
+- **Lumi** — relationship coach for me and my partner. Uses IFS, NVC, and radical honesty frameworks. Lives in `#relationship-couch` and can be DM'd by either of us.
+
+Each agent has:
+- Its own Mattermost bot account (separate bot token, separate WebSocket connection)
+- Its own OpenClaw workspace (`SOUL.md`, `AGENTS.md`, memory files, skills)
+- Its own session store and model configuration
+
+## The Simple Case: One Bot, One Channel
+
+Housie was easy. It has a dedicated bot account and a dedicated channel. The config:
+
+```json5
+{
+  agents: {
+    list: [
+      { id: "main", workspace: "~/.openclaw/workspace" },
+      { id: "home", name: "Housie", workspace: "~/.openclaw/workspace-home",
+        model: { primary: "anthropic/claude-sonnet-4-6" } },
+    ],
+  },
+  channels: {
+    mattermost: {
+      accounts: {
+        default: { name: "Jack", botToken: "jack-token" },
+        housie: { name: "Housie", botToken: "housie-token" },
+      },
+      groups: {
+        "<housie-channel-id>": { accountId: "housie" },
+      },
+    },
+  },
+  bindings: [
+    { agentId: "home", match: { channel: "mattermost", accountId: "housie" } },
+  ],
+}
+```
+
+The binding says: "everything on the `housie` Mattermost account → route to the `home` agent." Clean and simple.
+
+## The Tricky Case: Shared Teams, Multiple Bots
+
+Lumi is where it got interesting. I wanted all three bots to be members of the same Mattermost team — they need team membership for search access, channel context, and general visibility. But this creates a routing problem.
+
+When all three bots are on the same team, **all three WebSocket connections receive every message** in every channel on that team. So when someone posts in `#relationship-couch`:
+
+1. Lumi's WebSocket receives it ✓ (intended)
+2. Jack's WebSocket receives it ✗ (unintended)
+3. Housie's WebSocket receives it ✗ (unintended)
+
+Without explicit routing, OpenClaw processes the message from whichever WebSocket picks it up. If Jack's arrives first and there's no binding overriding it, it falls through to the default agent — Jack responds instead of Lumi.
+
+## The Fix: Per-Account Peer Bindings
+
+The solution is to add explicit peer-level bindings for **every account** that might receive messages in that channel:
+
+```json5
+{
+  channels: {
+    mattermost: {
+      accounts: {
+        default: { name: "Jack", botToken: "jack-token" },
+        housie: { name: "Housie", botToken: "housie-token" },
+        lumi: { name: "Lumi", botToken: "lumi-token",
+                dmPolicy: "allowlist",
+                allowFrom: ["<user-id-1>", "<user-id-2>"] },
+      },
+      groups: {
+        "<lumi-channel-id>": { requireMention: false, accountId: "lumi" },
+      },
+    },
+  },
+  bindings: [
+    // Housie: account-wide (simple case)
+    { agentId: "home", match: { channel: "mattermost", accountId: "housie" } },
+
+    // Lumi: account-wide for its own bot
+    { agentId: "lumi", match: { channel: "mattermost", accountId: "lumi" } },
+
+    // Lumi: peer-level overrides for OTHER bots seeing the same channel
+    { agentId: "lumi", match: { channel: "mattermost", accountId: "default",
+        peer: { kind: "group", id: "<lumi-channel-id>" } } },
+    { agentId: "lumi", match: { channel: "mattermost", accountId: "housie",
+        peer: { kind: "group", id: "<lumi-channel-id>" } } },
+  ],
+}
+```
+
+The last two bindings are the key insight. They tell OpenClaw: "even when Jack's or Housie's WebSocket picks up a message from this channel, route it to Lumi." OpenClaw's routing is most-specific-wins, and `peer`-level bindings (tier 1) beat `accountId`-only bindings (tier 6).
+
+## Gotcha: Hot-Reload vs Restart
+
+OpenClaw's gateway watches `openclaw.json` and hot-reloads most config changes. However, when adding a **new Mattermost account**, a full gateway restart is required. Hot-reload updates the config but doesn't establish new WebSocket connections for new bot accounts. Routing will silently fail — messages get processed by the default agent instead.
+
+```bash
+# Inside the container:
+kill -HUP 1
+
+# Or via kubectl:
+kubectl rollout restart deployment openclaw -n <namespace>
+```
+
+I spent a while debugging "why is Jack responding in Lumi's channel" before realizing this.
+
+## Gotcha: Stale Sessions
+
+If a message was routed to the wrong agent before you fix the bindings, OpenClaw creates a session under that agent (e.g. `agent:main:mattermost:channel:<id>`). Even after fixing the config and restarting, **the existing session keeps its routing**. You need to delete the stale session:
+
+```bash
+# Find and remove from the agent's sessions.json
+# Look for entries containing your channel ID in:
+~/.openclaw/agents/main/sessions/sessions.json
+```
+
+## Don't Remove Bots from Teams
+
+My first instinct was to remove Jack and Housie from the team where Lumi's channel lives. Don't do this — they need team membership for search, context, and cross-channel functionality. The binding approach is the correct solution.
+
+## The Full Mental Model
+
+```
+Message arrives in #relationship-couch
+  ├── Lumi's WebSocket     → accountId: "lumi"    → binding match → agent: lumi ✓
+  ├── Jack's WebSocket      → accountId: "default" → peer binding  → agent: lumi ✓
+  └── Housie's WebSocket    → accountId: "housie"  → peer binding  → agent: lumi ✓
+```
+
+All three paths lead to the same agent. That's the goal.
+
+## Summary
+
+| Scenario | Binding pattern |
+|----------|----------------|
+| One bot = one agent (simple) | `accountId` match only |
+| Multiple bots share a team | `accountId` match + `peer` bindings for each other account |
+| DM routing | `peer: { kind: "direct", id: "<user-id>" }` per account |
+
+The key principle: if multiple bots can see a channel, you need a binding for **each bot** pointing to the intended agent. OpenClaw's routing is deterministic and most-specific-wins, but you have to be explicit about it.
