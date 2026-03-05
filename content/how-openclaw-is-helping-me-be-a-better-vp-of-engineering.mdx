@@ -7,33 +7,23 @@ export const metadata = {
 
 Most "AI assistant" setups I've seen are glorified chatbots with a nicer UI. You type, it answers. Occasionally useful. Mostly forgotten after a week.
 
-I built something different. Here's what it looks like when you actually treat AI as infrastructure.
+I built something different. Here's what it looks like when you treat AI as work infrastructure for engineering leadership.
 
-## The setup
+## The problem
 
-I run 5 AI agents on [OpenClaw](https://github.com/openclaw/openclaw), each with its own identity, workspace, and Mattermost bot account:
+I'm VP of Engineering at [Futuresearch](https://futuresearch.ai), a 12-person team building [EveryRow](https://everyrow.io) (LLM research agents at scale). SF-based company, me in Prague. The usual chaos: multiple engineering streams, a CEO who moves fast, reports who need real 1:1s, production alerts, meeting transcripts nobody reads, and the constant feeling that something is slipping through the cracks.
 
-- **Jack** — my main personal assistant. Calendar, email, health habits, family scheduling, life management.
-- **Ace** — my work strategist. Reads my Slack, processes meeting transcripts, preps my 1:1s, monitors production alerts.
-- **Housie** — household management, shared with my partner Teri.
-- **Lumi** — relationship coaching (IFS-based, for when I need more than task management).
-- **Theo** — Teri's personal assistant.
+I needed a system, not a chatbot.
 
-All running on a K8s cluster. All reachable via Mattermost. All with persistent memory. All doing actual work when I'm not looking.
+## Meet Ace
 
-The personal stuff (Jack, Housie, Lumi) is great. But this post is about **Ace**, because that's where engineering leaders' eyes go wide.
+Ace is an AI agent running on [OpenClaw](https://github.com/openclaw/openclaw), an open-source framework for persistent AI agents. It has its own identity, its own workspace full of markdown files, its own Mattermost bot account, and access to my work tools: Slack, Sentry, Google Calendar, email.
 
-## When it clicked
+It's not a copilot that helps me write code. It's an always-on work strategist that handles the operational overhead of engineering leadership.
 
-I've been VP of Engineering at [Futuresearch](https://futuresearch.ai) for a while now. We're a 12-person team building [EveryRow](https://everyrow.io) — LLM research agents at scale. Fast-moving, technical, US-based company, me in Prague. The usual chaos.
+Here's what it actually does.
 
-The moment AI stopped being a tool and started being infrastructure was when I opened a 1:1 with one of my reports and realized I already knew exactly what to say. Not because I'd been obsessing over it, but because Ace had been quietly tracking the relationship context for weeks and surfaced the right notes 30 minutes before the meeting.
-
-Let me show you what I mean.
-
-## Ace: The work strategist
-
-### Meeting prep that actually knows your people
+## Meeting prep that knows your people
 
 Ace maintains a file called `meeting-preps.md`. It's a living scratchpad with talking points for every upcoming meeting. Before a 1:1, it surfaces things like:
 
@@ -50,88 +40,116 @@ Here's an actual excerpt from one file:
 
 That kind of nuance doesn't come from a performance review. It accumulates over weeks of paying attention. Ace does the accumulating so I can do the paying attention.
 
-### Meeting transcripts → engineering intelligence
+### How it works
 
-My Gemini meeting notes arrive via email. Ace picks them up, extracts the transcript, and analyzes it through a VP-of-Engineering lens. Not "who said what" but:
+Before each meeting, Ace checks my Google Calendar, looks up the attendees in the people files, and surfaces anything relevant: recent interactions, open tensions, things I wanted to follow up on. If I've added notes ("remind me to mention X"), those show up too. After the meeting passes, old entries get cleaned up.
+
+The prep notes are reminded once per meeting (30 minutes before), posted to Mattermost where I'll actually see them.
+
+## Meeting transcripts → engineering intelligence
+
+My Gemini meeting notes arrive via email. Ace picks them up, extracts the transcript from the linked Google Doc, and analyzes it through a VP-of-Engineering lens. Not "who said what" but:
 
 - What decisions were made?
 - What action items need tracking?
-- What team signals are here? (Who seems disengaged? What's causing friction?)
+- What team signals should I pay attention to? (Who seems disengaged? What's causing friction?)
 - What strategic opportunities is this surfacing?
 
-The output is a structured analysis that feeds back into the project management doc and people files. The flywheel keeps spinning.
+The output feeds back into the project management doc and people files. When Christoph raises a concern about the CEO merging PRs without review, that signal shows up in Christoph's people file and in my next meeting prep with the CEO. The flywheel keeps spinning.
 
-### A living strategic doc
+## A living strategic doc
 
-Ace maintains a project management document that tracks all engineering streams: ownership, priorities, open questions, timelines. It has streams like "Launch Blockers," "Platform Stability," "SDK & Connectors," each with per-person ownership.
+Ace maintains a project management document tracking all engineering streams: "Launch Blockers," "Platform Stability," "SDK & Connectors," "Data & Pagination," and so on. Each stream has per-person ownership, status, open questions, and blockers.
 
-This gets updated from meetings and standups automatically. I don't maintain this doc. Ace does.
+This gets updated from meetings and standups. I don't maintain this doc. Ace does. When I need the big picture before a planning call, it's already there and current.
 
-### Alerts monitoring on autopilot
+Here's a flavor of what it looks like:
 
-Every hour, Ace reads the `#alerts` Slack channels, investigates each alert via the Sentry API, and spawns a Claude Code subagent for root cause analysis. The summary lands in Mattermost. Processed alerts get marked with a 🔧 emoji.
+```
+### STREAM 1: Launch Blockers — 🔴 CRITICAL
+| Task                          | Owner              | Status      |
+|-------------------------------|--------------------| ------------|
+| Per-agent status updates      | Christoph + Nikos  | In progress |
+| Fix CSV loading               | ?                  | Needs owner |
+| Restore Export CSV button     | Rafael             | Not started |
+```
 
-I still review these. But I'm reviewing a *digest* with context, not a firehose of raw alerts.
+Plus open questions I need to resolve ("Rafael's priority split between connector work and CC work — he flagged this directly, needs explicit guidance"), timeline estimates, and a communication plan.
 
-### Slack without being in Slack
+## Alerts monitoring on autopilot
+
+Every hour, Ace reads the `#alerts` and `#alerts-dev` Slack channels, filters out already-processed alerts (marked with a 🔧 emoji), and for each new one:
+
+1. Extracts the Sentry issue ID or CI failure details
+2. Fetches context from the Sentry API
+3. Spawns a Claude Code subagent to investigate the root cause in our codebase
+4. Posts a summary to Mattermost
+
+I still review these. But I'm reviewing a *digest* with context and initial root cause analysis, not a firehose of raw alerts. The difference in cognitive load is massive.
+
+## Slack without being in Slack
 
 Ace has a user token for my work Slack. It reads relevant channels and can react to messages. I stay informed about what's happening in the team without needing to be in every conversation. When something needs my attention, it escalates. Otherwise, it just... knows things.
 
-### The leadership playbook
+This is especially valuable as a remote VP with US-based colleagues. Conversations happen while I sleep. By morning, Ace has already processed what matters.
 
-This one's the most unusual. Ace holds my leadership vision: what kind of VP I want to be, what the "four pillars" of operational excellence look like for our team, how I'm thinking about earning expanded scope.
+## The leadership playbook
 
-When I'm overwhelmed or reactive, Ace can pull me back to the strategic frame. It's not just a task manager; it's a thought partner that actually knows what I'm trying to build.
+This one's the most unusual. Ace holds my leadership vision: what kind of VP I want to be, what my "four pillars" of operational excellence look like, how I'm thinking about earning expanded scope through results.
 
-## Jack: the personal side
+It's structured as a persistent memory file that Ace references when I'm being reactive or overwhelmed. It can pull me back to the strategic frame: "You said operational hygiene comes first. Are the launch blockers assigned? Is the scaling question answered?"
 
-I won't go deep here, but the personal agent setup is genuinely useful too.
+It's not just a task manager. It's a thought partner that actually knows what I'm trying to build as a leader.
 
-Jack runs cron jobs for things like flower watering reminders (every 3 days), treadmill desk nudges (2 PM weekdays), daily OpenClaw release checks, and cluster health monitoring.
+## People context: the highest-leverage thing
 
-It has a heartbeat system that periodically batches: email inbox check (inbox zero methodology), calendar conflicts, task review, background queue processing.
+I want to highlight this separately because it's the thing I'd tell every engineering leader to steal.
 
-It knows my gym habits and understands the "aim small" psychology. It nudges me toward "just one exercise" in the morning rather than a full workout commitment, because once I start I always stay longer. It actively tries to get me in bed by 22:00 because I've told it my target bedtime is 22:30 and that everything goes better when I hit it.
+For each person on my team (and my CEO), Ace maintains a markdown file with:
 
-It tracks my daughter Julie's custody calendar and school schedule so I'm never blindsided by scheduling conflicts.
+- **Communication style** — how they like to receive feedback, what triggers defensiveness, what motivates them
+- **Current state** — are they happy? Overwhelmed? Looking for more scope? Flight risk?
+- **Recent signals** — things they said in meetings, tensions with others, wins worth acknowledging
+- **Working relationship notes** — how our dynamic works, what I need to do differently with this person
 
-Memory is daily logs plus a curated `MEMORY.md` that gets periodically consolidated. Jack wakes up each session, reads those files, and has continuity.
+These files get updated automatically from meeting transcript analysis, and I can add notes anytime ("Rafael seems frustrated about task sniping — acknowledge I'm aware").
 
-## Agents talking to each other
+The result: I walk into every 1:1 with genuine context, not vague memories from two weeks ago. The quality of my management conversations went up noticeably within the first week.
 
-The most recent addition: agents can communicate with each other via `sessions_send`. Jack can ask Ace about work context. Ace can alert Jack about scheduling conflicts that will affect my day.
+## Agent-to-agent communication
 
-This is early but the potential is obvious. The agents are starting to have a picture of my life that's more coherent than what I carry in my head on any given Tuesday.
+I also run a personal assistant agent (separate workspace, separate bot). Recently I enabled inter-agent communication so my PA can ask Ace about work context when relevant, and Ace can flag scheduling conflicts to my PA. It's early, but having the work agent and personal agent cooperate means neither has blind spots about my actual day.
 
-## Infrastructure notes
+## Infrastructure
 
-Everything runs on Kubernetes, self-hosted Mattermost. Each agent has:
+Everything runs on Kubernetes, self-hosted Mattermost as the messaging surface. Ace has:
 
-- Isolated workspace (separate file system, own `SOUL.md`, `MEMORY.md`, etc.)
-- Separate Mattermost bot account
-- Own session management
-- Config-driven routing via bindings
+- An isolated workspace (its own `SOUL.md`, `MEMORY.md`, people files, skills)
+- A separate Mattermost bot account
+- Persistent sessions and memory across restarts
+- Cron jobs for the alerts monitor and meeting prep reminders
+- Config-driven routing via OpenClaw bindings
 
-Config changes hot-reload. New bot accounts need a full restart. OpenClaw handles the orchestration.
+OpenClaw handles orchestration, session management, tool access, and the agent loop. I configure; it runs.
 
 ## What I'd do differently
 
-**Start with one agent, not five.** I built Ace first, and that was the right call. Personal stuff is easier to bolt on once the pattern is established.
-
-**Don't underestimate the people context files.** This was the highest-leverage thing I did. Thirty minutes of structured thinking about each team member, formalized into markdown files that an agent can read and update. This is worth more than any meeting framework.
+**Start with people context files.** This was the highest-leverage thing I did. Thirty minutes of structured thinking about each team member, formalized into markdown that an agent can read and update. Worth more than any meeting framework or productivity system.
 
 **Give it real access.** The alerts monitor only works because Ace has the Sentry API key. The Slack awareness only works because it has a real user token. Sandboxed agents are toys. Agents with actual access are infrastructure.
 
-**Expect to maintain it.** This is software. It has bugs. The prompts need tuning. The people files need updating when someone changes roles or teams. This is a system you run, not a product you buy.
+**Don't over-engineer the prompts.** The personality file (`SOUL.md`) is like 20 lines. The meeting prep skill is maybe 50 lines of instructions. The magic is in the *data* — the people files, the project doc, the accumulated memory. Get the data right and mediocre prompts still produce great results.
+
+**Expect to maintain it.** This is software. It has bugs. The prompts need tuning. The people files need updating when someone changes roles. This is a system you run, not a product you buy.
 
 ## What's next
 
-Longer-term memory consolidation across agents. Better cross-agent coordination. Potentially having Ace proactively draft comms (Slack messages, status updates) for my review rather than waiting for me to ask.
+Better memory consolidation. Proactive comms drafting (Slack messages, status updates) for my review rather than waiting for me to ask. Deeper cross-agent coordination.
 
-The ceiling is wherever my trust in the system lands. Right now that trust is growing.
+The ceiling is wherever my trust in the system lands. Right now that trust is growing every week.
 
 ---
 
-If you're a VP or engineering manager and this resonates, I'm happy to talk through the setup. The [OpenClaw](https://github.com/openclaw/openclaw) framework is the key. I'm not building this from scratch. I'm configuring agents with personalities, memories, and tool access inside a system that handles the orchestration.
+If you're an engineering leader and this resonates, the framework is [OpenClaw](https://github.com/openclaw/openclaw) — open source, self-hosted. I'm not building this from scratch. I'm configuring an agent with personality, memory, and real tool access inside a system that handles orchestration.
 
-Worth the investment. Took me maybe 3 weeks of spare-time iteration to get to something that felt like real infrastructure. The ROI kicked in around week 2.
+Took maybe 3 weeks of spare-time iteration to feel like real infrastructure. The ROI kicked in around week 2.
