@@ -208,6 +208,108 @@
   margin: 4rem 0;
 }
 
+/* ── Track entries ── */
+.exhibit-track {
+  margin-bottom: 3.5rem;
+  padding-bottom: 3.5rem;
+  border-bottom: 1px solid var(--ex-border);
+}
+
+.exhibit-track:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+.exhibit-track h3 {
+  font-family: "Crimson Pro", Georgia, serif;
+  font-weight: 400;
+  font-size: 1.15rem;
+  color: var(--ex-text-bright);
+  margin-bottom: 1.2rem;
+}
+
+.exhibit-track h3 em {
+  color: var(--ex-muted);
+  font-size: 0.95rem;
+  font-style: normal;
+}
+
+.exhibit-track-link {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 0.5rem;
+  color: var(--ex-muted);
+  text-decoration: none;
+  border: none !important;
+  font-size: 0.9rem;
+  opacity: 0.65;
+  transition: opacity 0.2s ease, color 0.2s ease;
+  vertical-align: middle;
+}
+
+.exhibit-track-link:hover {
+  opacity: 1;
+  color: #1db954;
+  border: none !important;
+}
+
+/* ── Philosophy toggle ── */
+.exhibit-why {
+  margin-top: 1.5rem;
+  border: 1px solid var(--ex-border);
+  border-radius: 4px;
+}
+
+.exhibit-why summary {
+  cursor: pointer;
+  padding: 0.7rem 1rem;
+  font-size: 0.9rem;
+  color: var(--ex-muted);
+  font-style: italic;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: color 0.2s ease;
+  user-select: none;
+}
+
+.exhibit-why summary::-webkit-details-marker {
+  display: none;
+}
+
+.exhibit-why summary::before {
+  content: "▸";
+  font-style: normal;
+  font-size: 0.75rem;
+  transition: transform 0.2s ease;
+}
+
+.exhibit-why[open] summary::before {
+  transform: rotate(90deg);
+}
+
+.exhibit-why summary:hover {
+  color: var(--ex-accent);
+}
+
+.exhibit-why-body {
+  padding: 0.5rem 1.25rem 1.25rem;
+  border-top: 1px solid var(--ex-border);
+}
+
+.exhibit-why-body p {
+  font-size: 0.95rem;
+  color: var(--ex-muted);
+  margin-bottom: 1rem;
+  line-height: 1.75;
+}
+
+.exhibit-why-body p:last-child {
+  margin-bottom: 0;
+}
+
 /* ── Closing ── */
 .exhibit-closing {
   text-align: center;

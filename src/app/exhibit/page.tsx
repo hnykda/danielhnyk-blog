@@ -1,4 +1,5 @@
 import "./exhibit.css";
+import { MusicSection } from "./MusicSection";
 
 export default function ExhibitPage() {
   return (
@@ -11,7 +12,7 @@ export default function ExhibitPage() {
             A curated window into how I see the world.
             <br />
             Not a manifesto. More like pointing at things and saying{" "}
-            <em>this — this is what I mean.</em>
+            <em>this, this is what I mean.</em>
           </p>
         </header>
 
@@ -21,7 +22,7 @@ export default function ExhibitPage() {
           <p>
             How the fuck did the world manage to arrange itself into this
             constellation? It&rsquo;s absolutely baffling. I still
-            haven&rsquo;t gotten over it — honestly, I don&rsquo;t think I
+            haven&rsquo;t gotten over it. Honestly, I don&rsquo;t think I
             ever will.
           </p>
           <p>
@@ -35,7 +36,7 @@ export default function ExhibitPage() {
         <section className="exhibit-section" id="life">
           <h2>The Life</h2>
           <p>
-            And then — life? A bunch of cells that accidentally learned to
+            And then, life? A bunch of cells that accidentally learned to
             wonder. No material soul, no cosmic plan, no self sitting behind
             the eyes pulling levers — just matter arranged in a way that looks
             at the stars and cries.
@@ -45,7 +46,7 @@ export default function ExhibitPage() {
             an emergent property of staggering complexity, and that makes it{" "}
             <strong>more</strong> fascinating, not less. The fact that
             there&rsquo;s no magic, no spirit stuff, no divine spark — and
-            yet here you are, reading this, feeling things —{" "}
+            yet here you are, reading this, feeling things,{" "}
             <strong>WHAT THE FUCK?!</strong>
           </p>
         </section>
@@ -118,8 +119,9 @@ export default function ExhibitPage() {
             The anger and the tenderness are the same fuel.
           </p>
           <p>
-            Puppies deserve compassion, not judgment. Honestly, it&rsquo;s a
-            miracle we got this far. Right into your face, bad god —
+            Puppies deserve compassion, not judgment. Honestly, it&rsquo;s an
+            absolutely crazy miracle that we are still alive and got this far.
+            Right into your face, bad god -
             didn&rsquo;t see that coming, did you?
           </p>
 
@@ -154,7 +156,7 @@ export default function ExhibitPage() {
             cells, but cells.
           </p>
           <p>
-            And yet — I decided, freely, from nothing, that I care about
+            And yet, I decided, freely, from nothing, that I care about
             suffering. Mine, yours, the cat&rsquo;s. Not because I&rsquo;m
             obligated, but because I looked at this mess with open eyes and
             chose: <em>no, we can do better.</em> And I&rsquo;m proud of that
@@ -206,7 +208,7 @@ export default function ExhibitPage() {
               <br />
               If not, it can&rsquo;t be helped.
             </p>
-            <span className="attribution">— Fritz Perls, Gestalt Prayer</span>
+            <span className="attribution">- Fritz Perls, Gestalt Prayer</span>
           </blockquote>
         </section>
 
@@ -257,7 +259,7 @@ export default function ExhibitPage() {
               <br />
               for they are already enduring it.
             </p>
-            <span className="attribution">— Eugene Gendlin</span>
+            <span className="attribution">- Eugene Gendlin</span>
           </blockquote>
         </section>
 
@@ -307,12 +309,7 @@ export default function ExhibitPage() {
         </section>
 
         {/* ── Music ── */}
-        <section className="exhibit-section" id="music">
-          <h2>Music</h2>
-          <p>
-            <em>Coming soon — the sounds that carry all of this.</em>
-          </p>
-        </section>
+        <MusicSection />
 
         {/* ── Closing ── */}
         <p className="exhibit-closing">
