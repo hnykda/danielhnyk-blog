@@ -238,19 +238,24 @@
 .exhibit-track-link {
   display: inline-flex;
   align-items: center;
-  margin-left: 0.5rem;
+  justify-content: center;
+  margin-left: 0.6rem;
   color: var(--ex-muted);
   text-decoration: none;
   border: none !important;
-  font-size: 0.9rem;
-  opacity: 0.65;
-  transition: opacity 0.2s ease, color 0.2s ease;
+  font-size: 0.85rem;
+  width: 1.6rem;
+  height: 1.6rem;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+  transition: background 0.2s ease, color 0.2s ease;
   vertical-align: middle;
+  flex-shrink: 0;
 }
 
 .exhibit-track-link:hover {
-  opacity: 1;
-  color: #1db954;
+  background: #1db954;
+  color: #000;
   border: none !important;
 }
 

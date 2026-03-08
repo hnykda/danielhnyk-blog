@@ -27,8 +27,11 @@ export default function ExhibitPage() {
           </p>
           <p>
             Matter just… organized itself. Into stars, into oceans, into
-            things that can wonder about stars and oceans. It doesn&rsquo;t
-            make any sense. It&rsquo;s a miracle.
+            things that can wonder about stars and oceans. I mean, I understand
+            &ldquo;how&rdquo; — the laws of physics made them (science! oh my
+            humanity, how did we manage to discover the deep truth!?). But it
+            still doesn&rsquo;t make any sense that it{" "}
+            <em>should</em> be. It&rsquo;s a miracle.
           </p>
         </section>
 
@@ -46,8 +49,8 @@ export default function ExhibitPage() {
             an emergent property of staggering complexity, and that makes it{" "}
             <strong>more</strong> fascinating, not less. The fact that
             there&rsquo;s no magic, no spirit stuff, no divine spark — and
-            yet here you are, reading this, feeling things,{" "}
-            <strong>WHAT THE FUCK?!</strong>
+            and yet here you are, reading this, reasoning about this,
+            feeling things, like seriously! <strong>WHAT THE FUCK?</strong>
           </p>
         </section>
 
@@ -168,6 +171,48 @@ export default function ExhibitPage() {
             philosophy term, it&rsquo;s something like moral anti-realism with
             voluntarily adopted values. But the term matters less than the
             thing: nothing says I have to care, and I care anyway.
+          </p>
+        </section>
+
+        {/* ── Joy ── */}
+        <section className="exhibit-section" id="joy">
+          <h2>Joy</h2>
+          <p>
+            The same way I choose to care about suffering — freely, from
+            nothing, because no cosmic law demands it — I also choose to just
+            have a good time. A really good time. I don&rsquo;t owe the world
+            my misery, and the world doesn&rsquo;t owe me its permission.
+          </p>
+          <p>
+            I am extraordinarily lucky. Not in a &ldquo;I worked hard and
+            earned it&rdquo; way — in a &ldquo;I happened to be born into
+            roughly the top 1% of the most fortunate humans who have ever
+            existed&rdquo; way. I didn&rsquo;t deserve it. Nobody deserves
+            anything — there&rsquo;s no mechanism for deserving. I just got
+            it. Clean water, a home, people I love, a body that works, a brain
+            that gets to wonder about the cosmos instead of worrying about
+            whether it&rsquo;ll eat tomorrow. That&rsquo;s insane. That&rsquo;s
+            a miracle of probability, not merit.
+          </p>
+          <p>
+            And I&rsquo;m going with it. I&rsquo;m having fun. I&rsquo;m
+            eating the good food, dancing to the weird music, staying up too
+            late, laughing at things that aren&rsquo;t that funny, making
+            mistakes that aren&rsquo;t that important. I&rsquo;m not always
+            correct. I&rsquo;m not always doing the right thing. Sometimes
+            I&rsquo;m just a lucky ape enjoying the city he accidentally ended
+            up in, and that&rsquo;s fine. That&rsquo;s more than fine —
+            that&rsquo;s the point.
+          </p>
+          <p>
+            If you&rsquo;ve stared into the void and decided to care anyway,
+            you&rsquo;ve also earned the right to enjoy the ride. Not as a
+            reward. Not because you&rsquo;ve done enough good to justify
+            pleasure. Just because you&rsquo;re here, briefly, improbably, and
+            the coffee is good this morning and the light is doing something
+            beautiful on the wall and your daughter is laughing at something in
+            the other room. You don&rsquo;t need a reason. You don&rsquo;t
+            need a rhyme. Just a dance to the music of time.
           </p>
         </section>
 
