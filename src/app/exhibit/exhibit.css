@@ -1,0 +1,218 @@
+/* ── Exhibit: a separate world ── */
+
+.exhibit {
+  --ex-bg: #0a0a0f;
+  --ex-text: #d4d0c8;
+  --ex-text-bright: #ede9df;
+  --ex-muted: #7a7568;
+  --ex-accent: #c4956a;
+  --ex-accent-dim: #8b6a4a;
+  --ex-link: #c4956a;
+  --ex-border: rgba(196, 149, 106, 0.15);
+
+  min-height: 100vh;
+  background: var(--ex-bg);
+  color: var(--ex-text);
+  font-family: "Crimson Pro", Georgia, "Times New Roman", serif;
+  font-size: 1.15rem;
+  line-height: 1.85;
+  position: relative;
+  overflow-x: hidden;
+}
+
+/* ── Nebula background ── */
+.exhibit::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  background:
+    radial-gradient(ellipse at 20% 20%, rgba(100, 60, 120, 0.08) 0%, transparent 60%),
+    radial-gradient(ellipse at 80% 50%, rgba(60, 80, 130, 0.06) 0%, transparent 55%),
+    radial-gradient(ellipse at 50% 80%, rgba(120, 80, 60, 0.05) 0%, transparent 50%),
+    radial-gradient(ellipse at 10% 90%, rgba(80, 100, 120, 0.04) 0%, transparent 40%);
+  pointer-events: none;
+}
+
+/* subtle star-dust */
+.exhibit::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  background-image:
+    radial-gradient(1px 1px at 10% 15%, rgba(255, 255, 255, 0.12), transparent),
+    radial-gradient(1px 1px at 25% 40%, rgba(255, 255, 255, 0.08), transparent),
+    radial-gradient(1px 1px at 50% 10%, rgba(255, 255, 255, 0.1), transparent),
+    radial-gradient(1px 1px at 70% 60%, rgba(255, 255, 255, 0.06), transparent),
+    radial-gradient(1px 1px at 85% 25%, rgba(255, 255, 255, 0.09), transparent),
+    radial-gradient(1px 1px at 40% 75%, rgba(255, 255, 255, 0.07), transparent),
+    radial-gradient(1px 1px at 60% 90%, rgba(255, 255, 255, 0.05), transparent),
+    radial-gradient(1px 1px at 15% 65%, rgba(255, 255, 255, 0.08), transparent),
+    radial-gradient(1.5px 1.5px at 92% 80%, rgba(255, 255, 255, 0.11), transparent),
+    radial-gradient(1px 1px at 35% 30%, rgba(255, 255, 255, 0.06), transparent);
+  pointer-events: none;
+}
+
+.exhibit * {
+  position: relative;
+  z-index: 1;
+}
+
+/* ── Container ── */
+.exhibit-inner {
+  max-width: 680px;
+  margin: 0 auto;
+  padding: 6rem 1.5rem 8rem;
+}
+
+@media (max-width: 600px) {
+  .exhibit-inner {
+    padding: 3rem 1.25rem 5rem;
+  }
+}
+
+/* ── Opening ── */
+.exhibit-opening {
+  text-align: center;
+  margin-bottom: 5rem;
+}
+
+.exhibit-opening h1 {
+  font-family: "Crimson Pro", Georgia, serif;
+  font-weight: 400;
+  font-size: 2.5rem;
+  color: var(--ex-text-bright);
+  letter-spacing: 0.08em;
+  margin-bottom: 1rem;
+}
+
+.exhibit-opening .subtitle {
+  font-size: 1rem;
+  color: var(--ex-muted);
+  font-style: italic;
+  line-height: 1.6;
+  max-width: 440px;
+  margin: 0 auto;
+}
+
+/* ── Sections ── */
+.exhibit-section {
+  margin-bottom: 5rem;
+}
+
+.exhibit-section h2 {
+  font-family: "Crimson Pro", Georgia, serif;
+  font-weight: 400;
+  font-size: 1.6rem;
+  color: var(--ex-accent);
+  letter-spacing: 0.04em;
+  margin-bottom: 1.5rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--ex-border);
+}
+
+.exhibit-section p {
+  margin-bottom: 1.3rem;
+  color: var(--ex-text);
+}
+
+.exhibit-section strong {
+  color: var(--ex-text-bright);
+  font-weight: 600;
+}
+
+.exhibit-section em {
+  color: var(--ex-accent-dim);
+  font-style: italic;
+}
+
+/* ── Links ── */
+.exhibit a {
+  color: var(--ex-link);
+  text-decoration: none;
+  border-bottom: 1px solid rgba(196, 149, 106, 0.3);
+  transition: border-color 0.2s ease;
+}
+
+.exhibit a:hover {
+  border-bottom-color: var(--ex-accent);
+}
+
+/* ── Blockquotes (poems, quotes) ── */
+.exhibit blockquote {
+  margin: 2rem 0;
+  padding: 1.5rem 2rem;
+  border-left: 2px solid var(--ex-accent-dim);
+  background: rgba(196, 149, 106, 0.03);
+  border-radius: 0 4px 4px 0;
+}
+
+.exhibit blockquote p {
+  color: var(--ex-text-bright);
+  font-style: italic;
+  margin-bottom: 0.7rem;
+  line-height: 1.7;
+}
+
+.exhibit blockquote p:last-child {
+  margin-bottom: 0;
+}
+
+.exhibit blockquote cite,
+.exhibit blockquote .attribution {
+  display: block;
+  margin-top: 0.8rem;
+  font-size: 0.9rem;
+  color: var(--ex-muted);
+  font-style: normal;
+}
+
+/* ── Video embeds ── */
+.exhibit-video {
+  margin: 2rem 0;
+  position: relative;
+  padding-bottom: 56.25%;
+  height: 0;
+  overflow: hidden;
+  border-radius: 6px;
+  border: 1px solid var(--ex-border);
+}
+
+.exhibit-video iframe {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+.exhibit-video-caption {
+  font-size: 0.9rem;
+  color: var(--ex-muted);
+  margin-top: 0.5rem;
+  font-style: italic;
+}
+
+/* ── Separator ── */
+.exhibit-sep {
+  border: none;
+  height: 1px;
+  background: linear-gradient(
+    to right,
+    transparent,
+    var(--ex-border),
+    transparent
+  );
+  margin: 4rem 0;
+}
+
+/* ── Closing ── */
+.exhibit-closing {
+  text-align: center;
+  color: var(--ex-muted);
+  font-style: italic;
+  font-size: 0.95rem;
+  margin-top: 4rem;
+}
