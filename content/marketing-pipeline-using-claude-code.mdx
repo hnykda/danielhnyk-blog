@@ -1,0 +1,160 @@
+export const metadata = {
+  title: "Marketing Pipeline Using Claude Code",
+  slug: "marketing-pipeline-using-claude-code",
+  date: "2026-03-11",
+  tags: ["IT", "AI Engineering"],
+};
+
+*Part 3 of a series on using Claude Code as a production runtime. Originally published on [everyrow.io](https://futuresearch.ai/blog/marketing-pipeline-using-claude-code).*
+
+---
+
+*These posts are somewhere between a case study and a forkable example. We open-sourced the skills, agents, and Python utilities at [github.com/futuresearch/example-cc-cronjob](https://github.com/futuresearch/example-cc-cronjob) - they won't work as-is (you'll need your own API keys and sources), but they show all the important bits we use in production. We build [everyrow.io](https://everyrow.io) - forecast, score, classify, or research every row of a dataset - and these pipelines are how we market it.*
+
+People who need [everyrow.io](https://everyrow.io) are out there - scattered across Reddit, StackOverflow, HubSpot forums, Salesforce communities, Make.com, Airtable, Shopify, GitHub, and a dozen others. Someone deduplicating a CRM where "IBM" and "International Business Machines" are the same company. Someone joining two tables that share no common key. Someone ranking leads by criteria a spreadsheet formula can't express. We narrowed it down to 18 sources where these conversations happen most often. The problem is that maybe 2-3% of posts are actually relevant. Manually scanning hundreds of posts every morning to find two or three good ones is not something a human is going to keep doing.
+
+So we built a pipeline:
+
+```
+Phase 1: Scan
+  └── 18 Python scanners fetch posts from Reddit, StackOverflow, HubSpot, ...
+       ↓ dedup against seen.txt
+Phase 2: Enrich
+  └── Fetch full thread content: comments, replies, author info, vote counts
+       ↓
+Phase 3: Classify
+  └── 13-question rubric per thread, assign score 1-5
+       ↓ filter to score 4-5
+Phase 4: Propose
+  └── Select strategy, match to demo catalog, draft forum response
+       ↓
+Phase 5: Report + PR
+  └── Markdown report with metrics, draft responses. Branch, commit, push, PR.
+```
+
+Every weekday at 08:00 UTC, a CronJob runs this end-to-end, unattended, in about 14 minutes. The output is a pull request someone on the team opens over coffee. It runs on the infrastructure from [Post 1](/claude-code-kubernetes-cronjob/), using the workflow patterns from [Post 2](/claude-code-workflow-engine/). This post is about putting the concepts from Post 1 and Post 2 in use.
+
+## Dealing with Signal vs Noise
+
+A typical run from February: 57 opportunities scanned, 35 enriched with full thread content, 35 classified. Score distribution: 1 scored 5, 1 scored 4, 33 scored 1-2. Eighty-nine percent is noise. And that's fine - those two good ones are what the whole pipeline exists for.
+
+The noise is varied and no keyword filter catches it. About 50% of Reddit "opportunities" turn out to be competitor marketing posts dressed up as questions - someone promoting their deduplication tool while pretending to ask for advice. Discussion threads that start with "What's your favorite..." are never opportunities. Platform configuration bugs dressed as data problems - someone's Make.com aggregator is misconfigured, not facing a data quality issue. Career questions on Snowflake forums. "Show HN" builder posts. Exact-match problems where VLOOKUP works fine and the person just hasn't tried it yet.
+
+Therefore, we have our own LLM powered classifier that uses a rubric with 13 structured questions. Not all of them are interesting (you can all of them in the example repo), but these are the ones that carry the most weight:
+
+- **canonical**: Is this a common problem others face daily, or bespoke? A canonical problem means a response helps thousands of future readers, not just one person.
+- **tools_tried**: What have they already tried? If they've tried fuzzy matching and it failed, they already understand why their problem is hard.
+- **tried_llms**: Have they tried ChatGPT for this? If they tried and it didn't work, they need a tool that actually scales.
+- **importance**: Does this look important? Business process blocked? "Our admin is drowning" is a different signal than "just curious."
+- **commenter_solutions**: What are commenters saying? If someone already solved it with a native platform feature - and the poster accepted the answer - there's no opportunity.
+- **person_importance**: Does the person look important? A StackOverflow user with 700k reputation answering "there's no solution" makes the thread more visible, not less.
+
+The classifier's instructions include: "At no point should you Write() a Python script. If you think you need one, it's because you misunderstood these instructions." We added this after a classifier tried to write a sentiment analysis script instead of just reading the thread and thinking about it.
+
+## Examples: Three Real Finds
+
+**The Brazilian cities.** Someone on StackOverflow was manually fixing about 5,000 Brazilian city name variants with SQL `UPDATE` statements. Bill Karwin - one of the highest-reputation answerers on StackOverflow - wrote: "there's no solution to correct 100% of the variations." SOUNDEX fails on Portuguese phonetics. The pattern table approach from another answer still requires manually enumerating every variation.
+
+The pipeline found this at 8am scanning the `record-linkage` tag. The classifier scored it 5. The proposer matched it to demo C11 (Challenging + Messy) and drafted a response showing the [`everyrow` SDK](https://github.com/futuresearch/everyrow-sdk):
+
+```python
+from everyrow.ops import dedupe
+
+result = await dedupe(
+    input=cities_df,
+    equivalence_relation="""
+        Same Brazilian city, accounting for:
+        - Accent differences (Florianopolis vs Florianópolis)
+        - Abbreviations (Sto Andre vs Santo André, S Jose vs São José)
+        - Typos and spacing variations
+    """,
+    strategy='select',
+)
+```
+
+The `equivalence_relation` is natural language - you describe what counts as a match and the model handles the linguistic reasoning. No regex, no phonetic algorithm, no pattern table. We reviewed the draft, tweaked a sentence, and posted it.
+
+**The Make.com 75K-row CSV.** A user on Make.com had a 75,000-row CSV and needed both exact AND similar matches. Make.com's AI agent can't handle that scale - it's designed for conversational Q&A, not batch processing. The only commenter suggested exact-match approaches (map/aggregator), which completely miss the semantic similarity requirement. The pipeline classified it as a score-4 opportunity and drafted a response showing how `everyrow dedupe` handles the full 75K rows in one pass, with instructions for getting results back into a Make workflow.
+
+**The Agentforce problem.** "We bought Agentforce but can't use it because our Salesforce data is a mess." Company names listed 3-4 different ways, contacts missing emails, opportunities linked to wrong accounts. 58 upvotes, 35 comments. This represents a category the pipeline keeps discovering - AI-readiness problems, where companies buy AI tools and find their data isn't ready. The pipeline found it, classified it, and we posted a response showing CRM [deduplication](https://everyrow.io/docs/reference/DEDUPE) with the SDK: 210 records in, 42 duplicates found, 52 seconds, $0.23.
+
+```python
+from everyrow.ops import dedupe
+
+result = await dedupe(
+    input=crm_data,
+    equivalence_relation="Two entries are duplicates if they represent "
+    "the same company, accounting for abbreviations, typos, and subsidiaries",
+)
+# 210 rows → 168 unique entities, 42 duplicates identified
+```
+
+## What Works and What Doesn't
+
+After two months of daily runs, the source-level data is clear:
+
+| Source | Hit rate | Notes |
+|--------|----------|-------|
+| Reddit | 1.5-3% | Consistently highest signal |
+| Databricks | ~40% | Low volume (1-2/run) but when it hits, it hits |
+| StackExchange | 2-5% on classic tags | `record-linkage`, `string-matching` work. `excel`, `google-sheets` yield 0% |
+| Make.com | Moderate | Workflow builders who need AI at one step |
+| Salesforce | Occasional | High-quality finds when they appear |
+| n8n | 0% | 132 posts across 7 runs. Zero data problems. |
+| Retool | 0% | 300+ posts. Platform support only. |
+
+We kept scanning n8n for seven consecutive runs hoping something would turn up. Every run found posts about workflow configuration, OAuth setup, and version upgrade bugs. The learnings file eventually said what we already knew: discontinue.
+
+Cost: $5-8 per run for our own utilities. Fourteen minutes is the overall runtime, we pay 200 Max Anthropic plan.
+
+The pipeline also reveals other interesting findings as it analyzes historical questions, such these market shifts:
+
+- **LLM adoption inflection**: People who tried LLMs before asking for help went from 6-8% (2020-2023) to 33% in 2025. A third of our prospects have already tried ChatGPT and found it doesn't scale.
+- **StackOverflow collapse**: StackOverflow went from 23% of our opportunities in 2020 to 3% in 2025. Reddit grew from 6% to 36%. Technical Q&A has fragmented into product-specific communities - which is exactly why we need 18 scanners instead of one.
+
+## The Response Strategy
+
+For opportunities scoring 4 or 5, product-specific proposer agents take over. Each proposer reads our product docs and a catalog of 29 existing demos, then generates a response using one of these strategies:
+
+| Strategy | When |
+|----------|------|
+| PROVE_CAPABILITY | Default (~80%). Show a demo proving we solve the problem. |
+| SHOW_SDK_CODE | Technical audience. Lead with a code snippet. |
+| SHOW_INTEGRATION | Workflow platform users. Show how results fit their pipeline. |
+| EXPLAIN_APPROACH | Audience wants to understand *why* LLMs beat fuzzy matching. |
+| OFFER_HANDS_ON | Recent post, engaged OP. Offer to run their data. |
+
+The proposer matches each problem to the closest existing demo - 29 demos organized by difficulty, and the proposer reads the catalog and picks. When the poster provides sample data, it shows results on *their* data. When they don't, it shows results on the closest demo we have.
+
+The test for every draft: if someone stripped the product mention, would this answer still be useful?
+
+This is where the loop closes. As we described in [Post 2](/claude-code-workflow-engine/), the output of the whole system is a pull request. A non-technical person on the team opens it, reads the report, and sees the draft responses with working code snippets and real results. They adjust the tone, maybe add a sentence from their own experience, and post it. The person on the other end gets a genuinely helpful answer to a problem they were stuck on. That's the point - not to pollute forums with product links, but to find people who are actually struggling with something our tools solve and help them. Together, it takes 15 minutes of human time for what would otherwise be a full day of research.
+
+## The Pipeline Teaches Itself
+
+After each run, the pipeline can update a learnings file. These aren't logs - they're instructions for future runs:
+
+```
+- "Remove 'duplication' tag - returns feature posts, not data problems"
+- "Databricks: low volume but 40% conversion. Worth keeping."
+- "If native platform feature exists and author accepts it → score 1-2"
+- "Christmas Eve: 50% false positives. Likely holiday effect."
+```
+
+The next run reads the learnings before it starts. Over 6 weeks: 642 proposals in the database, 3,800+ URLs processed. The pipeline gets better because it remembers what didn't work.
+
+The best finds aren't always in new threads. Thread archaeology - checking old discussions for unanswered or poorly-answered questions - turned up some of the strongest opportunities. The Agentforce post was months old when the pipeline found it.
+
+## The Simplified Example
+
+We put together a runnable version of this pipeline at [github.com/futuresearch/example-cc-cronjob](https://github.com/futuresearch/example-cc-cronjob) - the same repo from Post 1, now with a `community-scanner` skill alongside the original `add-numbers` example. It has the full structure: a skill with all five phases, a classifier agent with the 13-question rubric, a proposer agent with the strategy taxonomy and SDK examples, a Python scanner that fetches from Reddit's public JSON API, and a learnings file the pipeline updates after each run. It scans a few subreddits instead of 18 sources, and runs in a single process instead of fanning out to parallel subagents, but the pipeline logic is the same. Fork it, point it at your subreddits, see what it finds.
+
+## What We Know Now
+
+The infrastructure is the easy part. The know-how - which sources to scan, what questions to ask, how to draft a response that genuinely helps someone - is what those daily runs teach you. If this stopped working tomorrow, we'd manually check a few subreddits once a week. Like we did before December.
+
+*We build [everyrow.io](https://everyrow.io) - forecast, score, classify, or research every row of a dataset. This pipeline is how we find the people who need it.*
+
+---
+
+*Next: [Self-Optimizing SEO Pipeline](/self-optimizing-seo-pipeline/)*
