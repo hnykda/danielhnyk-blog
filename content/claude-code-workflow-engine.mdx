@@ -5,13 +5,13 @@ export const metadata = {
   tags: ["IT", "AI Engineering"],
 };
 
-*Part 2 of a series on using Claude Code as a production runtime. Originally published on [everyrow.io](https://everyrow.io/blog/claude-code-workflow-engine).*
+*Part 2 of a series on using Claude Code as a production runtime. Originally published on [futuresearch.ai](https://futuresearch.ai/blog/claude-code-workflow-engine).*
 
 ---
 
 Our marketing pipeline scans 18 community sources, enriches threads with full content, classifies opportunities with a 20-question rubric, generates draft forum responses, and creates a pull request - every weekday at 08:00 UTC. The whole pipeline definition is not e.g. Python's functions with some workflow manager and executor like Prefect or Dagster (which are both cool), but - yeah, you guessed it - a markdown file in plain English, written by my boss.
 
-I don't mean my boss *specified* it and an engineer implemented it. I mean he opened `SKILL.md` in his editor and typed the pipeline in English. Or more precisely - in the light of this series - he asked Claude Code to write it together with him. It's a markdown file that says things like "spawn 18 scanners in background" and "after phase 1, do phase 2." It's not a formal task DAG and isn't specified in code. And it all runs _inside_ Claude Code, as described in our [first post from the series](/claude-code-kubernetes-cronjob/). This post is about a generic comparison of such systems, while we will see specific instances of that in the subsequent posts.
+I don't mean my boss *specified* it and an engineer implemented it. I mean he opened `SKILL.md` in his editor and typed the pipeline in English. Or more precisely - in the light of this series - he asked Claude Code to write it together with him. It's a markdown file that says things like "spawn 18 scanners in background" and "after phase 1, do phase 2." It's not a formal task DAG and isn't specified in code. And it all runs _inside_ Claude Code, as described in our [first post from the series](https://futuresearch.ai/blog/claude-code-kubernetes-cronjob). This post is about a generic comparison of such systems, while we will see specific instances of that in the subsequent posts.
 
 ## Rough Comparison
 
@@ -93,7 +93,7 @@ Each: Task (subagent_type: scanner, run_in_background: true): "Scan {source}"
 
 That's the DAG basically: "Spawn 18 things. Track them." Claude Code reads this, spawns 18 subagents, and tracks the task IDs. The "dependency graph" is the document order: Phase 2 comes after Phase 1 because it's written after Phase 1, as... any human naturally works and thinks.
 
-Running it is what we covered in the [Part 1](/claude-code-kubernetes-cronjob/). You pass `"execute scan-and-classify skill"` as a prompt and it runs. Again, you don't have to think about deployments and flags and if you should use `deploy()` or `serve()` or anything, just CLI command.
+Running it is what we covered in the [Part 1](https://futuresearch.ai/blog/claude-code-kubernetes-cronjob). You pass `"execute scan-and-classify skill"` as a prompt and it runs. Again, you don't have to think about deployments and flags and if you should use `deploy()` or `serve()` or anything, just CLI command.
 
 ## What an Agent Looks Like
 
@@ -149,7 +149,7 @@ Agents will run forever if you let them, and given how imprecise and informal th
 
 **Layer 2: Wall-clock cap per phase.** 10 minutes. If a batch of agents hasn't finished, move on with whatever completed. Mark the stragglers as "timeout" in the report.
 
-**Layer 3: Bash `timeout 10800`.** After 3 hours, a second Claude wakes up to salvage partial results (see [Post 1](/claude-code-kubernetes-cronjob/)).
+**Layer 3: Bash `timeout 10800`.** After 3 hours, a second Claude wakes up to salvage partial results (see [Post 1](https://futuresearch.ai/blog/claude-code-kubernetes-cronjob)).
 
 **Layer 4: activeDeadlineSeconds.** And finally the hard limit enforced by Kubernetes, set to 4 hours in our case.
 
@@ -211,4 +211,4 @@ The flexibility matters more than the reliability here. When the classifier catc
 
 ---
 
-*Next: [Marketing Pipeline Using Claude Code](/marketing-pipeline-using-claude-code/)*
+*Next: [Marketing Pipeline Using Claude Code](https://futuresearch.ai/blog/marketing-pipeline-using-claude-code)*

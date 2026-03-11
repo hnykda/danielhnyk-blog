@@ -5,7 +5,7 @@ export const metadata = {
   tags: ["IT", "AI Engineering"],
 };
 
-*Part 3 of a series on using Claude Code as a production runtime. Originally published on [everyrow.io](https://futuresearch.ai/blog/marketing-pipeline-using-claude-code).*
+*Part 3 of a series on using Claude Code as a production runtime. Originally published on [futuresearch.ai](https://futuresearch.ai/blog/marketing-pipeline-using-claude-code).*
 
 ---
 
@@ -32,7 +32,7 @@ Phase 5: Report + PR
   └── Markdown report with metrics, draft responses. Branch, commit, push, PR.
 ```
 
-Every weekday at 08:00 UTC, a CronJob runs this end-to-end, unattended, in about 14 minutes. The output is a pull request someone on the team opens over coffee. It runs on the infrastructure from [Post 1](/claude-code-kubernetes-cronjob/), using the workflow patterns from [Post 2](/claude-code-workflow-engine/). This post is about putting the concepts from Post 1 and Post 2 in use.
+Every weekday at 08:00 UTC, a CronJob runs this end-to-end, unattended, in about 14 minutes. The output is a pull request someone on the team opens over coffee. It runs on the infrastructure from [Post 1](https://futuresearch.ai/blog/claude-code-kubernetes-cronjob), using the workflow patterns from [Post 2](https://futuresearch.ai/blog/claude-code-workflow-engine). This post is about putting the concepts from Post 1 and Post 2 in use.
 
 ## Dealing with Signal vs Noise
 
@@ -128,7 +128,7 @@ The proposer matches each problem to the closest existing demo - 29 demos organi
 
 The test for every draft: if someone stripped the product mention, would this answer still be useful?
 
-This is where the loop closes. As we described in [Post 2](/claude-code-workflow-engine/), the output of the whole system is a pull request. A non-technical person on the team opens it, reads the report, and sees the draft responses with working code snippets and real results. They adjust the tone, maybe add a sentence from their own experience, and post it. The person on the other end gets a genuinely helpful answer to a problem they were stuck on. That's the point - not to pollute forums with product links, but to find people who are actually struggling with something our tools solve and help them. Together, it takes 15 minutes of human time for what would otherwise be a full day of research.
+This is where the loop closes. As we described in [Post 2](https://futuresearch.ai/blog/claude-code-workflow-engine), the output of the whole system is a pull request. A non-technical person on the team opens it, reads the report, and sees the draft responses with working code snippets and real results. They adjust the tone, maybe add a sentence from their own experience, and post it. The person on the other end gets a genuinely helpful answer to a problem they were stuck on. That's the point - not to pollute forums with product links, but to find people who are actually struggling with something our tools solve and help them. Together, it takes 15 minutes of human time for what would otherwise be a full day of research.
 
 ## The Pipeline Teaches Itself
 
@@ -156,5 +156,3 @@ The infrastructure is the easy part. The know-how - which sources to scan, what 
 *We build [everyrow.io](https://everyrow.io) - forecast, score, classify, or research every row of a dataset. This pipeline is how we find the people who need it.*
 
 ---
-
-*Next: [Self-Optimizing SEO Pipeline](/self-optimizing-seo-pipeline/)*
