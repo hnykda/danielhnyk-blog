@@ -1,0 +1,114 @@
+export const metadata = {
+  title: "OpenClaw setup for an engineering manager",
+  slug: "openclaw-setup-for-engineering-manager",
+  date: "2026-03-18",
+  tags: ["IT", "AI", "devops", "productivity"],
+};
+
+I'm VP of Engineering at a 12-person startup. My day involves Slack, GitHub, Notion, Gmail, Google Calendar, Google Meet transcripts, and context-switching between all of them. I've been running [OpenClaw](https://openclaw.ai) self-hosted for a few months now, and one of my agents, Ace, has turned into something I didn't expect: a VP of Engineering command center.
+
+This post is about what Ace does, how the skills are structured, and what I've learned building a work-focused AI agent that actually reduces my cognitive load instead of adding to it.
+
+## Background
+
+I wrote about the [multi-agent routing setup](/openclaw-multi-agent-mattermost-routing/) and the [Kubernetes deployment](/self-hosting-openclaw-on-kubernetes/) in earlier posts. The short version: I run four agents in one OpenClaw gateway, each with its own Mattermost bot, workspace, and personality. Jack handles personal stuff. Housie handles the household. Lumi is a relationship coach. Ace handles work.
+
+Ace has its own `SOUL.md` that sets the tone: direct, no corporate fluff, context-rich. It holds the full picture of my company, team dynamics, CEO communication style, product history. When I'm on a call and need a quick answer, it's concise. When I'm thinking through strategy, it's thorough.
+
+What makes it useful is not any single capability. It's that all of these things live in one agent with shared context.
+
+## The Daily Briefing
+
+Every morning, Ace runs a "battle orientation." The name is intentionally dramatic. It cross-references GitHub PRs across all active repos with Notion task board activity and produces a briefing.
+
+The briefing covers:
+- PRs merged since yesterday, PRs open, PRs going stale
+- Notion task movements (what moved to "In progress," what's been stuck)
+- Team velocity patterns across consecutive days
+- Gaps: tasks without PRs, PRs without tasks, items nobody's touched
+
+It also generates a Dan S (our CEO) update draft. Copy-paste ready. This saves me 15-20 minutes every morning and, more importantly, catches things I'd miss. A PR that's been open for four days with no review. A task that moved to "In progress" a week ago and hasn't moved since.
+
+The pattern detection across consecutive days is the part that surprised me. When the same item shows up as "stale" three days running, it stops being a data point and becomes a conversation I need to have.
+
+## Notion Integration
+
+Ace has full read/write access to our Futuresearch Notion workspace: the main engineering board, my personal task tracker, and project databases. When I say "what's on my plate?" it pulls from both boards and gives me a prioritized view.
+
+More useful than querying: Ace creates tasks from context. After processing a Slack thread where someone flagged a production issue, it can create the Notion task with the right project, priority, and a description that includes the Slack thread link. After a meeting, it extracts action items from the transcript and creates tasks for each one.
+
+The Notion API has quirks. Status names are case-sensitive. Trashed databases still appear in search results. Rate limits hit at about 3 requests per second. Ace's skill file documents all of these so I don't rediscover them every time.
+
+## Slack Monitoring
+
+This is where things get interesting. Ace monitors two Slack channels hourly: `#alerts` and `#alerts-dev`. For each new alert, it investigates via the Sentry API and GitHub, spawns a Claude Code subagent for root cause analysis, and posts a summary to Mattermost.
+
+At 3 AM, when a Sentry alert fires because a background job is failing, I don't wake up. At 8 AM, I open Mattermost and there's a summary: what failed, which commit likely caused it, and whether it's still happening. Most of the time it's a transient issue that resolved itself. When it's not, I have enough context to triage it in two minutes instead of twenty.
+
+Ace also tracks my Slack bookmarks. I react with 🔖 on messages I want to save, and Ace picks them up during sweeps. It's a low-friction way to say "I'll deal with this later" without losing it.
+
+Reading Slack uses my user token rather than a bot token. This means Ace sees exactly what I see, no channel membership issues, no missing context.
+
+## Meeting Prep and Processing
+
+This is a two-phase system.
+
+**Before meetings:** Ace maintains a meeting prep scratchpad. For 1:1s, it pulls up the person's profile from its workspace: their current projects, recent signals (PRs, Slack activity, anything I've noted about them), risk factors, and topics from our last 1:1. A cron fires 15 minutes before scheduled meetings with a reminder and prep notes.
+
+**After meetings:** Ace processes the transcript. Google Meet generates transcripts that land in my inbox as emails with links to Google Docs. Ace extracts the full text, then runs it through a meeting intel skill that pulls out decisions, action items, team signals, and strategic opportunities. The action items become Notion tasks. The signals update the person's profile in Ace's workspace.
+
+The transcript extraction is its own skill because the format varies. Sometimes it's a Gemini summary. Sometimes it's a full transcript. Sometimes the content is inline in the email, sometimes it's a Google Doc link that needs to be fetched separately. Having one extraction skill that handles all the edge cases means the meeting intel skill can focus on analysis.
+
+## The People CRM
+
+Ace maintains a mini-CRM for each team member in its workspace. Not a formal database, just markdown files with structured sections:
+
+- Current state (what they're working on, how they seem to be doing)
+- Recent work signals (PRs, Slack activity, meeting notes)
+- Risk assessment (is anything off? quiet in Slack? stuck on something?)
+- 1:1 topics (rolling list, things to bring up next time)
+
+This updates incrementally. When Ace processes a meeting transcript and someone mentions they're blocked on an API dependency, that goes into their file. When the battle orientation shows someone hasn't opened a PR in a week, that becomes a signal. None of this is surveillance. It's the context I'd keep in my head if my working memory were infinite.
+
+The value shows up in 1:1 prep. Instead of "so, what are you working on?" I can start with "last time you mentioned the API migration was blocking you, how did that go?" My team doesn't know Ace exists in this capacity. They just think I have a good memory.
+
+## Communication Coaching
+
+This one is hard to describe without examples, but Ace helps me communicate with my CEO. Not by writing messages for me, but by coaching me on framing.
+
+When I draft a Slack message about a problem, Ace will flag if I'm leading with the problem instead of the solution. When I need to push back on a timeline, it helps me frame it in terms the CEO cares about. When I'm frustrated after a meeting, it knows when to validate and when to say "you're right, but here's how that message will land."
+
+It knows my CEO's communication style from months of context, and adjusts suggestions accordingly. This is one of those capabilities that sounds trivial on paper but has meaningfully improved my working relationship.
+
+## Cron Jobs
+
+The automation layer ties it together:
+
+| Job | Schedule | What it does |
+|-----|----------|--------------|
+| Battle orientation | Daily, morning | GitHub + Notion cross-reference briefing |
+| Standup/grooming prep | 15 min before (Tuesdays) | Agenda prep with recent signals |
+| Alerts monitor | Hourly | Slack #alerts + Sentry investigation |
+| Daily update reminder | Afternoon | Nudge to send CEO update |
+
+Each cron runs in its own session with Ace's full context. When the alerts monitor finds something, it has access to the same Sentry integration, GitHub repos, and team context that Ace uses in conversation. The cron jobs aren't separate scripts. They're the same agent on a schedule.
+
+## What I'd Do Differently
+
+**Start with one skill, not ten.** I built the battle orientation first and used it for two weeks before adding anything else. Each skill needs tuning, and the tuning is easier when you're not also debugging five other things.
+
+**Invest in the workspace files early.** Ace's `SOUL.md`, the people profiles, the project trackers: this context is what makes the agent useful. A battle orientation without team context is just a GitHub dashboard. With context, it's a briefing.
+
+**Separate the agent from personal stuff.** Jack (my personal agent) and Ace have completely separate workspaces. Work context stays in work context. When I ask Jack about something personal, it doesn't have access to my CEO's communication style or team risk assessments. This separation matters for both focus and security.
+
+**Keep skills small and composable.** The transcript extraction skill does one thing: get the text of a meeting. The meeting intel skill does one thing: analyze that text. The inbox skill does one thing: triage email. When meeting transcripts change format (and they do), I fix one skill.
+
+## Is This Worth It?
+
+I spend maybe 30 minutes a week maintaining Ace. Tweaking a skill, updating a person's profile, adjusting a cron schedule. In return, I get 30-45 minutes back every morning from the battle orientation alone. The meeting prep saves 10-15 minutes per 1:1. The alerts monitor has caught production issues before anyone else noticed at least three times.
+
+But the biggest value is harder to quantify. It's the reduction in "I forgot to follow up on that" moments. The PR that went stale and I caught on day 3 instead of day 10. The action item from a meeting two weeks ago that actually got done because it became a Notion task automatically.
+
+I manage three people directly and coordinate with the rest of a 12-person team. The cognitive overhead of tracking all of that across Slack, GitHub, Notion, email, and calendar is real. Ace doesn't eliminate it, but it reduces it enough that I can focus on the parts of the job that require human judgment: the 1:1 conversations, the strategic decisions, the moments where someone needs support and the data won't tell you that.
+
+The setup is open source. [OpenClaw](https://openclaw.ai) is on GitHub, the skills are markdown files, and the configuration is JSON. If you manage a team and already self-host anything, the barrier to trying this is an afternoon.
