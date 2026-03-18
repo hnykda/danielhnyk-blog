@@ -11,6 +11,19 @@ I wrote about [multi-agent routing](/openclaw-multi-agent-mattermost-routing/) a
 
 This post covers what Ace does, how the workspace and skills are structured, and what I learned building it.
 
+## What I'm Optimizing For
+
+I built Ace around a framework I call the four pillars of operational excellence. These are the foundation I hold myself to before anything else counts:
+
+1. **Operational hygiene.** Nothing falls through. Alerts get investigated. PRs get reviewed. Open mentions get responses. Billing gets checked. If something broke and I didn't notice, I failed.
+2. **Team orientation.** I have a clear picture of every workstream: who's working on what, what's blocked, what shipped, what's stale. I can answer any question about any project without checking Slack first.
+3. **Communication.** I'm the go-to for technical questions. I'm in the threads. I respond fast. The team never wonders if I saw their message.
+4. **Technical presence.** I ship code, review PRs, and post about technical decisions. Visible without grandstanding.
+
+Ace exists to make these four things possible without spending my entire day on information gathering. The battle orientation covers pillar 2. The alerts monitor covers pillar 1. The people profiles and meeting prep cover pillar 3. Everything feeds into having time left for pillar 4: the actual engineering work.
+
+Once the foundation is solid, there's a bonus layer: individual contributions, strategic ownership, setting engineering culture. I want an automation-first engineering culture where processes are scriptable and codebases are agent-friendly. That's CTO-track thinking, not just keeping the lights on. But the pillars come first.
+
 ## Workspace Structure
 
 Every agent in OpenClaw gets its own workspace directory. This is where its personality, memory, skills, and tools config live. Here's the full structure for Ace:
@@ -137,7 +150,9 @@ Scans for messages I reacted to with 🔖. Extracts the full thread context arou
 
 ### Transcript Extraction
 
-Handles all the format variants Google Meet generates: Gemini summary emails, full transcript emails, inline content, and Google Doc links that need separate fetching. Normalizes everything to plain text for downstream skills. Having extraction isolated means when the format changes (and it does), I fix one skill and meeting intel keeps working without touching it.
+Google Meet records transcripts and Gemini summaries, then emails them to participants. The flow: I enable Google's built-in transcript feature for a meeting. After the call, Google emails me a link to a Google Doc containing the transcript (or sometimes a Gemini-generated summary, or sometimes inline content in the email body). Ace picks this up during an inbox sweep, uses `gog` (a Google Workspace CLI) to fetch the Doc contents, and normalizes everything to plain text.
+
+The extraction skill handles all the format variants: Gemini summaries (shorter, sometimes miss key details), full verbatim transcripts (long, noisy, but complete), inline email content (no Doc link to follow), and Google Doc links that need a separate API fetch. Having extraction isolated means when Google changes the format (and they do), I fix one skill and meeting intel keeps working without touching it.
 
 ### Work Slack
 
@@ -181,7 +196,7 @@ The consistent note it gives: lead with what you're doing and when it'll be done
 
 ## What Actually Broke (and What I Fixed)
 
-**The Notion API version gotcha was the first real wall.** The 2025-09-03 API renamed `database_id` to `data_source_id` and `/databases/` to `/data_sources/`. Every Notion call failed until I figured out why and documented it in the skill file. Now the agent reads the skill file before any API call. The fix was trivial. Discovering it wasn't. Document API quirks in the skill itself -- not in your head, not in a separate notes file.
+**Third-party API quirks will break you on day one.** Notion, Sentry, Slack -- every API has undocumented behaviors, silent failures, and version-specific field names. The agent called the Notion API with the wrong field names and got cryptic errors. The fix took five minutes. Finding the fix took an hour. Now every skill file documents the API quirks it depends on, and the agent reads the skill file before making any call. If your skill touches an external API, document the gotchas inline.
 
 **Two people with the same name.** My CEO and I are both named Dan. The agent kept mixing us up when processing meeting transcripts: attributing decisions to the wrong person, putting action items on the wrong task. Required an explicit correction rule and a disambiguation mapping in `corrections.md`. I should have caught this before the first transcript ran. If your company has any name collisions, build the disambiguation in early.
 
