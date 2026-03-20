@@ -1,0 +1,161 @@
+export const metadata = {
+  title: "Building a Book Search for AI Agents with Voyage AI and sqlite-vec",
+  slug: "building-a-book-search-for-ai-agents",
+  date: "2026-03-20",
+  tags: ["IT", "AI", "AI Engineering"],
+};
+
+I have [several AI agents](/openclaw-multi-agent-mattermost-routing/) running on my [self-hosted OpenClaw setup](/self-hosting-openclaw-on-kubernetes/). One of them, Ember, is a relationship and intimacy coach. Ember needs to reference specific books during conversations: tantra texts, attachment theory, consent frameworks, shadow work. The problem is obvious: you can't stuff 30+ books into a context window.
+
+So I built a semantic search pipeline that lets any of my agents query a shared book library. The whole thing runs on sqlite-vec and Voyage AI's free tier. Here's how.
+
+## The problem
+
+Ember had a `/resources/books/` directory with 40+ epub and text files. When someone asked about breathwork or polarity, the agent would grep through raw text files. It worked, barely. Results were keyword-dependent and context-free. Ask about "connecting with your partner through presence" and grep returns nothing, because no book contains that exact phrase.
+
+I wanted vector search: embed the books into chunks, embed the query, find semantically similar passages. Standard RAG stuff. The question was which tools to use, given the constraints:
+
+- Runs inside a Kubernetes pod (no GPU, limited memory)
+- Needs to be queryable from multiple agents (Jack, Ember, Lumi all share the same database)
+- Should be cheap or free (this is a personal project)
+- Ingestion is a one-time batch job, not a streaming pipeline
+
+## Choosing the embedding model
+
+I researched chunking strategies and embedding models for about a day before writing any code. The [research notes](https://github.com/hnykda/danielhnyk-blog) ended up at 300 lines, comparing nine different approaches from naive fixed-size chunking to agentic chunking.
+
+The winner was clear: **Voyage AI's `voyage-context-3`**. It's a purpose-built model for "contextualized chunk embeddings." You pass all chunks from a document (or chapter) together, and the model embeds each chunk with awareness of its surrounding context. A chunk saying "revenue increased 15%" gets embedded differently when surrounded by Leafy Inc.'s Q2 filing versus a general economics textbook.
+
+The alternatives I considered:
+
+- **Late chunking** (Jina AI): Elegant idea where you embed the full document token-by-token, then pool chunks from the sequence. But it's tied to Jina's models and degrades on documents longer than ~8k tokens. My books are 50-100k tokens each.
+- **Contextual Retrieval** (Anthropic's approach): Use Claude to generate a context blurb for every chunk before embedding. High quality, but expensive. An LLM call per chunk across 30 books means thousands of API calls during ingestion.
+- **Standard embeddings** (voyage-4, OpenAI ada-002): Work fine, but each chunk is embedded in isolation. You lose the "what book and chapter is this from" signal.
+
+Voyage AI clinched it for a second reason: **their free tier gives you 200 million tokens**. My entire book corpus (36 books, ~4.5M tokens) uses 2.8% of the quota. Ingestion is essentially free. Queries are negligible.
+
+## Choosing the storage
+
+I looked at three options:
+
+- **LanceDB**: Single-file, no server, Python-native, hybrid search out of the box. My initial research recommended this.
+- **DuckDB**: Has vector extensions, good analytics capabilities, but the vector search felt bolted-on.
+- **sqlite-vec**: SQLite extension for vector similarity search. Minimal dependencies, runs anywhere SQLite runs.
+
+I went with **sqlite-vec**. The reasoning: I'm storing a few thousand chunks, not millions. sqlite-vec is a single `.db` file I can copy, back up, and query from any Python script. It runs inside the OpenClaw container without additional services. LanceDB would have been fine too, but sqlite-vec had fewer moving parts.
+
+The database schema ended up normalized across three tables:
+
+```sql
+CREATE TABLE books (
+  book_id      INTEGER PRIMARY KEY AUTOINCREMENT,
+  title        TEXT NOT NULL,
+  author       TEXT NOT NULL,
+  description  TEXT,
+  when_to_read TEXT,
+  tags         TEXT,       -- "tantra,breathwork,ember,lumi"
+  source_path  TEXT,
+  embed_model  TEXT NOT NULL,
+  embed_dim    INTEGER NOT NULL,
+  ingested_at  TEXT NOT NULL
+);
+
+CREATE TABLE chunks (
+  chunk_id       INTEGER PRIMARY KEY AUTOINCREMENT,
+  book_id        INTEGER NOT NULL REFERENCES books(book_id),
+  chapter_title  TEXT,
+  chapter_number INTEGER,
+  chunk_index    INTEGER NOT NULL,
+  text           TEXT NOT NULL
+);
+
+CREATE VIRTUAL TABLE vec_chunks USING vec0(
+  chunk_id  INTEGER PRIMARY KEY,
+  embedding FLOAT[1024]
+);
+```
+
+The `tags` field does double duty: topic tags ("tantra", "consent", "attachment") and agent tags ("ember", "lumi"). When Ember queries, it filters to books tagged "ember". When Lumi queries, it filters to "lumi". Same database, different views.
+
+An early version had a separate `agents` column. My AI assistant Jack suggested it, I told him to just put agent names in tags. Simpler schema, same functionality.
+
+## The pipeline
+
+The ingestion pipeline is dumb on purpose. No LLM calls, no interpretation, no summarization. Parse, chunk, embed, store.
+
+```
+epub → ebooklib → chapter-level text → chunk (~512 tokens) → voyage-context-3 → sqlite-vec
+```
+
+**Parsing**: `ebooklib` iterates over EPUB spine items. BeautifulSoup strips HTML. Chapter titles come from h1/h2/h3 tags, falling back to "Chapter N" when headings are missing.
+
+**Chunking**: ~2048 characters per chunk (roughly 512 tokens). Split at sentence boundaries. No overlap between chunks, which is unusual for RAG pipelines, but intentional: voyage-context-3 encodes cross-chunk context during embedding, making overlap redundant.
+
+**Embedding**: All chunks from a chapter are passed together to `contextualized_embed()`. The model reads the full chapter context when encoding each individual chunk. I batch 5 chapters per API call to stay under the 120k-token-per-request limit. Learned that one the hard way when "Come As You Are" (387 chunks across 30 chapters) blew past the limit on the first attempt.
+
+**Querying**: The query also uses `contextualized_embed()` with `input_type="query"`. This is critical. Using the standard `embed()` endpoint produces vectors in a different space, and cosine similarity scores go negative. I made this mistake during the proof of concept and got garbage results until I realized the query embedding method has to match the document embedding method.
+
+```python
+# This is wrong -- incompatible vector space
+result = client.embed([query], model="voyage-3", input_type="query")
+
+# This is right
+result = client.contextualized_embed(
+    inputs=[[query]],
+    model="voyage-context-3",
+    input_type="query",
+)
+```
+
+## Edge cases in the wild
+
+Books are messy. Some things I hit during ingestion:
+
+**Dear Lover** (David Deida) had only 3 spine items in the EPUB. Most books have 20-70. It still parsed into 2 chapters and 129 chunks, but the parser initially failed because it was looking for more structure.
+
+**Wheel of Consent** (Betty Martin) had 73 spine items and many duplicate chapter titles. The parser now auto-appends "(2)", "(3)" to duplicates.
+
+**You Are the One You've Been Waiting For** (Richard Schwartz, IFS) had nearly all content crammed into 2 mega-chapters. Each chapter exceeded voyage-context-3's 32k context window. That one still needs a fix to sub-batch within large chapters.
+
+**XML parser warnings**: BeautifulSoup complains when EPUB items are XHTML rather than HTML. Non-fatal, but noisy. I suppress them rather than switching parsers.
+
+## Results
+
+39 books ingested. 11,738 chunks. ~5.5M Voyage tokens consumed (2.8% of the free 200M). The whole ingestion took about 20 minutes, mostly API latency.
+
+Search quality is good. "Conscious lovemaking practices" returns passages from Diana Richardson's "Heart of Tantric Sex." "Shadow work and unconscious patterns" returns Carolyn Elliott's "Existential Kink." "Touch and consent" returns Betty Martin's "Wheel of Consent." The tag filtering keeps agent-specific queries scoped.
+
+For wider context around a hit, the pipeline has a `get_surrounding_chunks()` function that fetches adjacent chunks from the same chapter. So the agent can show not just the matching passage but the paragraphs around it.
+
+## Making it a shared skill
+
+The pipeline lives as an [OpenClaw skill](https://docs.openclaw.ai) at `skills/embedding-rag/`. The database file sits in a shared directory accessible to all agents. Any agent with the skill can call `query(db, "how do I work with jealousy", tag_filter="lumi")` and get results.
+
+The skill file (SKILL.md) documents the schema, API, gotchas, and a rule I care about: **before ingesting any book, ask the user for tags, description, and "when to read" context**. I don't want agents auto-ingesting random files. Each book should be intentionally tagged so the right agents find the right material.
+
+The whole thing is three files:
+
+- `pipeline.py` (create_db, add_book, query, get_surrounding_chunks)
+- `ingest_epub.py` (parse_epub)
+- `SKILL.md` (documentation and usage rules)
+
+## What I'd change
+
+**LanceDB might have been the better choice** for storage. sqlite-vec works, but LanceDB has native hybrid search (vector + keyword) and better metadata filtering. For a few thousand chunks the difference is negligible, but if I add PDF support and the corpus grows, I'll probably migrate.
+
+**Chunk size tuning**. I went with ~512 tokens based on common recommendations. I haven't benchmarked whether 256 or 768 would retrieve better for this specific corpus of long-form nonfiction.
+
+**PDF support**. The parser only handles EPUBs. Some books only exist as PDFs. Adding PyMuPDF for PDF parsing is straightforward but not done yet.
+
+## The takeaway
+
+If you're building RAG for a small-to-medium corpus (dozens of books, not millions of documents), the stack is simple:
+
+1. **voyage-context-3** for embeddings (free tier is generous, contextualized embeddings are significantly better than standard ones)
+2. **sqlite-vec** or LanceDB for storage (single file, no server)
+3. **ebooklib** + BeautifulSoup for EPUB parsing
+4. **Sentence-boundary chunking at ~512 tokens, no overlap** (the embedding model handles cross-chunk context)
+
+Total cost: $0. Total infrastructure: one SQLite file. Total code: ~400 lines of Python.
+
+The agents now quote specific passages from 39 books instead of hallucinating relationship advice. That feels like a meaningful upgrade.
