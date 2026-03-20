@@ -147,6 +147,16 @@ The whole thing is three files:
 
 **PDF support**. The parser only handles EPUBs. Some books only exist as PDFs. Adding PyMuPDF for PDF parsing is straightforward but not done yet.
 
+## Why this matters
+
+Here's the thing that excites me most about this project, and it has nothing to do with vector databases.
+
+I've read maybe 10 of these 39 books. My partner has read different ones. Neither of us can hold all of them in our heads simultaneously and draw connections across authors, frameworks, and traditions. Nobody can. You read a book about attachment theory, then six months later you read one about tantric practice, and the link between anxious attachment and body tension that both authors describe from different angles just... doesn't fire. You forgot the specifics from the first book.
+
+An LLM with retrieval over 39 books can do something no human reader can: pull relevant passages from Nagoski, Richardson, Martin, and Elliott in the same breath and synthesize a perspective that combines all of them. Not perfectly. Not the way a human therapist with 30 years of experience would. But for the first time, there's an entity that can cross-reference 50 books on how to relate to your partner and find a combination of viewpoints tailored to your specific situation.
+
+We use these agents for relationship coaching. The question is rarely "what does this one book say." It's "given everything we've read about desire, consent, polarity, and shadow work, what fits us." That question used to require either a very well-read therapist or years of personal study. Now it requires a SQLite file and a Voyage AI API key.
+
 ## The takeaway
 
 If you're building RAG for a small-to-medium corpus (dozens of books, not millions of documents), the stack is simple:
