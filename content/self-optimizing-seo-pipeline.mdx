@@ -1,0 +1,184 @@
+export const metadata = {
+  title: "The Self-Optimizing SEO Pipeline",
+  slug: "self-optimizing-seo-pipeline",
+  date: "2026-03-18",
+  tags: ["IT", "AI Engineering"],
+};
+
+*Part 4 of a series on using Claude Code as a production runtime. Originally published on [futuresearch.ai](https://futuresearch.ai/blog/self-optimizing-seo-pipeline).*
+
+---
+
+*These posts are somewhere between a case study and a forkable example. We open-sourced the skills, agents, and Python utilities at [github.com/futuresearch/example-cc-cronjob](https://github.com/futuresearch/example-cc-cronjob) - they won't work as-is (you'll need your own API keys and sources), but they show all the important bits we use in production. We build [FutureSearch](https://futuresearch.ai) - forecast, score, classify, or research every row of a dataset - and these pipelines are how we market it.*
+
+> **Update (March 2026):** When this post was written, we had two separate domains — futuresearch.ai for research articles and everyrow.io for product pages and docs. We've since consolidated everything onto futuresearch.ai. The pipeline is simpler now: one domain, one GSC property.
+
+SEO for a small product is a treadmill. We have 75 pages and our top page has 14,757 impressions and 7 clicks - 0.05% CTR. Thousands of people see that listing and scroll past it every week. Figuring out which titles to change, what to change them to, and whether the last change helped or hurt is a spreadsheet job nobody does consistently. But it compounds: a title change that lifts CTR from 0.03% to 0.1% on a 14,000-impression page means 10 more clicks per week.
+
+The [marketing pipeline from Post 3](https://futuresearch.ai/blog/marketing-pipeline-using-claude-code) scans communities for people with data problems. This pipeline does something narrower: it reads our own search data and proposes changes to improve what we already have. It reads a week of Google Search Console data, spawns an Opus-model agent for every page, and proposes title and description changes. Each agent reads the history of every change we've made to that page, what the search data looked like before and after, and whether the outcome improved. The next suggestion comes from that history, and it gets better over time.
+
+## The Pipeline
+
+Five phases. 330 lines of markdown, running on the infrastructure from [Post 1](https://futuresearch.ai/blog/claude-code-kubernetes-cronjob) using the workflow patterns from [Post 2](https://futuresearch.ai/blog/claude-code-workflow-engine).
+
+```
+Phase 1: Collect GSC Data
+  └── MCP server fetches from Google Search Console (both domains)
+       ↓ 6 API calls → raw JSON on disk
+Phase 2: Prepare Per-Page Inputs
+  └── Python script computes deltas, matches queries to pages
+       ↓ 75 per-page JSON files
+Phase 3: Analyze All Pages
+  └── seo-page-analyzer agents (batches of 10) + seo-new-page-proposer
+       ↓ each agent writes suggestion back to its input file
+Phase 4: Record Proposed Changes
+  └── Collect all suggestions into changes JSON
+       ↓
+Phase 5: Report + PR
+  └── Markdown report with performance table + proposed changes
+       ↓ branch, commit, push, PR
+```
+
+## How It Collects Data
+
+The pipeline reads from Google Search Console via an MCP server - [mcp-server-gsc](https://github.com/AminForou/mcp-gsc). One-time setup: a `.mcp.json` in the project root (the credentials file mounts as a Kubernetes secret):
+
+```json
+{
+  "mcpServers": {
+    "google-search-console": {
+      "command": "npx",
+      "args": ["-y", "mcp-server-gsc"],
+      "env": {
+        "GOOGLE_APPLICATION_CREDENTIALS": "./gsc-credentials.json"
+      }
+    }
+  }
+}
+```
+
+Claude Code discovers the tool automatically. The skill file says:
+
+```markdown
+mcp__google-search-console__search_analytics:
+  siteUrl: "sc-domain:futuresearch.ai"
+  startDate: "{start}"
+  endDate: "{end}"
+  dimensions: "query,page"
+  rowLimit: 25000
+```
+
+Six API calls total - page performance, query-page mappings, and all queries, for each domain. Raw JSON lands on disk.
+
+## How It Decides What to Change
+
+`lib/seo_prepare.py` transforms the raw GSC data into per-page input files. Each file has everything an agent needs to make a judgment call:
+
+```json
+{
+  "slug": "openai-revenue-forecast",
+  "domain": "futuresearch.ai",
+  "category": "research",
+  "current_metadata": {
+    "title": "OpenAI's Financial Forecast 2025-2027",
+    "description": "..."
+  },
+  "gsc_current": {
+    "clicks": 5, "impressions": 14480,
+    "ctr": 0.03, "position": 7.8,
+    "queries": [
+      { "query": "openai revenue 2026", "impressions": 716, "position": 10.4 }
+    ]
+  },
+  "gsc_diff": { "clicks_delta": 5, "impressions_delta": 2961 },
+  "experiment_history": [...]
+}
+```
+
+The [lib + agent pattern](https://futuresearch.ai/blog/claude-code-workflow-engine) from Post 2: Python handles the mechanical work (parsing JSON, computing deltas, matching queries to pages), and the agent handles the judgment (is this title working? did last week's experiment improve CTR?).
+
+The skill runs agents in batches of 10. Each `seo-page-analyzer` - running Opus, because judgment matters here - gets one page and makes one decision: suggest a title change, a description change, a content change, or nothing. Eight batches cover all pages. A separate `seo-new-page-proposer` reads unmatched queries and flags gaps where we're missing traffic entirely.
+
+The agents follow a decision framework in the agent definition:
+
+- Product pages ([Dedupe](https://futuresearch.ai/docs/reference/DEDUPE), [Merge](https://futuresearch.ai/docs/reference/MERGE), [Rank](https://futuresearch.ai/docs/reference/RANK), [Screen](https://futuresearch.ai/docs/reference/SCREEN)) always get experiments, even at zero impressions. Low traffic is a reason to experiment.
+- Research pages with CTR above 2% and good position get left alone unless the top queries clearly don't match the title.
+- Title formats rotate - question, how-to, keyword-colon-descriptor, direct imperative - so the site doesn't turn formulaic.
+
+On one run, the same pipeline proposed:
+
+- "How to Search Government Websites at Scale, for Investors" → "Which Texas Cities Have the Fastest Permit Approval Times?" - question format, specific geography
+- "Using LLMs for Data Cleaning At Scale" → "LLM Deduplication at 20,000 Rows: F1=0.996 for $1.12 per 1k Rows" - specific numbers for a developer audience
+
+The output of a single run is a PR. Two real excerpts from the March 18th report - one routine, one where the history caught a mistake:
+
+```markdown
+**forecasting-top-ai-lab-2026** - description
+- Was: (empty)
+- Proposed: "We ranked OpenAI, Anthropic, Google DeepMind, xAI, and Meta across
+  model quality, data, compute, talent, and R&D automation. See who is winning
+  the AI race in 2026 and where each lab stands heading into Q2."
+- Why: 14,757 impressions, 7 clicks (0.05% CTR) despite ranking position 1-5 for
+  many queries. Description is empty - Google is writing its own snippet. Adding
+  a concrete description is the lowest-effort lever left on this page.
+```
+
+```markdown
+**lead-scoring-without-crm** - title
+- Was: "How to Score Leads with AI When You Don't Have a CRM"
+- Proposed: "AI Lead Scoring Without Clay: Rank 500 Prospects for $28"
+- Why: Previous experiment removed 'Clay' from the title. Result: clay lead
+  scoring impressions dropped from 39 to 1, all Clay-related queries lost.
+  History shows this was a clear regression. Adding it back with specific
+  numbers targets the audience that was converting.
+```
+
+Nothing gets applied automatically. A human reviews the proposals, picks the ones worth trying, and applies them. Takes about 20 minutes.
+
+## How It Gets Better
+
+Every page's input file includes `experiment_history` - every change we've made, when we made it, the search data before and after, and whether the outcome improved, stayed flat, or regressed:
+
+```json
+{
+  "experiment_date": "2026-01-15",
+  "change_type": "title",
+  "old_value": "OpenAI Revenue Report",
+  "new_value": "OpenAI's Revenue in 2027: A Comprehensive Forecast",
+  "data_before": {
+    "clicks": 5, "impressions": 18000,
+    "ctr": 0.03, "position": 8.2
+  },
+  "data_after": {
+    "clicks": 10, "impressions": 22039,
+    "ctr": 0.05, "position": 7.5
+  },
+  "outcome": "improved"
+}
+```
+
+The analyzer reads this before suggesting the next change. A title that improved CTR informs the next experiment. One that regressed is a "don't repeat this" marker. It's closer to a consultant who keeps notes than anything resembling ML. The JSON file is the notebook. Each run reads it before writing in it.
+
+The agents don't share history across pages. The learning is per-page: what was tried, what happened, what to try next. After six runs across two months, some patterns are clear:
+
+- Question-format titles outperform statement titles for research articles
+- Specific numbers in case study titles ("F1=0.996 for $1.12 per 1k Rows") lift CTR on developer-focused pages
+- Empty descriptions on high-impression pages are a recurring catch - our top page ran for weeks with no meta description while Google wrote one for us
+
+## Where It Stands
+
+Pages analyzed grew from 35 to 80 over the first few runs. From the March 18th run:
+
+- 80 pages tracked
+- 14,757 impressions on our top page (forecasting-top-ai-lab-2026)
+- 69 changes proposed
+
+The docs pages are still early. The [Dedupe](https://futuresearch.ai/docs/reference/DEDUPE) reference page has 12 impressions. The [Merge](https://futuresearch.ai/docs/reference/MERGE) reference page has 0. The pipeline treats them the same as the 14,757-impression research articles, but with different rules: always experiment on product pages, leave well-performing research pages alone. We're building product page SEO while the research articles carry traffic.
+
+A non-technical person on the team opens the PR, reads through the proposed changes, and applies the ones that make sense. The pipeline produces 69 suggestions with reasoning and data. The human spends 20 minutes deciding which ones to run. Neither does this alone - the human wouldn't compute deltas across 80 pages every week, and the pipeline doesn't get to change titles on a 14,000-impression page without someone reviewing it first.
+
+---
+
+*Next: [An LLM Pipeline That Uses Its Own Product](https://futuresearch.ai/blog/pipeline-uses-its-own-product) - the pipeline that finds today's news, calls our own product, and generates sardonic data visualizations about Microsoft Copilot's dignity.*
+
+*We build [FutureSearch](https://futuresearch.ai) - forecast, score, classify, or research every row of a dataset. This pipeline is how we optimize its SEO.*
