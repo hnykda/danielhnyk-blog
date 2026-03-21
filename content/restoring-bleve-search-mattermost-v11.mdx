@@ -171,9 +171,28 @@ extraVolumeMounts:
 
 The above covers the non-obvious parts. You would also want to add ingress with TLS, resource limits, and health probe timings adjusted for a slower startup, but those are fairly standard.
 
+## One more thing: tuning it for our household
+
+Once search was working, I noticed something slightly annoying. The restored Bleve code uses the `standard` analyzer, which just tokenizes at word boundaries and lowercases. It works, but it means searching "running" won't find "run", and common filler words like "the" or "is" get indexed and matched against.
+
+More relevantly for us: our household messages are a mix of English and Czech. "A", "ale", "bez", "bylo" — Czech stop words that appear in almost every sentence and add noise to search results.
+
+Since I already had the fork open, fixing this was a small change. Bleve ships with an `en` analyzer (Porter stemming, English stop words, possessive filter) and a `cs` stop word list, both bundled in the same package with no extra dependencies. I wrote a custom `en_cs` analyzer that combines them:
+
+- Unicode tokenization
+- English possessive filter (`'s`)
+- Lowercase
+- English stop words
+- Czech stop words
+- Porter stemmer
+
+Twenty-odd lines of Go, and now the search index is actually tuned for how we write. This is the part of the story I keep thinking about. Not just that I could restore something that was removed, but that I could then keep going and make it better for my specific situation — something no upstream would ever prioritize for a four-person Czech-English household, but that was completely within reach once I was already in the codebase.
+
+The new mapping only applies to freshly created indexes, so after deploying I had to purge the old ones and re-index. The purge API was also something restored in the fork, which felt appropriately circular.
+
 ## Is it worth it
 
-Search works now. The bulk indexing job created the index files at `/mattermost/data/bleve-indexes` and they have survived several pod restarts since.
+Search works now, in both languages. Jack can find messages by content, stems match correctly for English, and Czech filler words no longer dominate the results. The index files have survived several pod restarts and a few deploys since.
 
 When the next Mattermost version comes out, the upgrade is a rebase:
 
