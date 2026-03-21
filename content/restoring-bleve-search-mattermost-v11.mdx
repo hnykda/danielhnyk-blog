@@ -7,23 +7,16 @@ export const metadata = {
 
 I run Mattermost for my four-person household. It replaced Slack after Slack started deleting message history on the free tier, and it has worked well ever since. Until I was reading through the [deprecated features page](https://docs.mattermost.com/product-overview/deprecated-features.html) while planning an upgrade to v11 and found that Bleve search was being removed.
 
-That was a bit of a gut punch. Mattermost had removed the pure-Go embedded search engine that had served small self-hosted instances well for years, and the replacement path requires Elasticsearch, which is a significant piece of infrastructure to run for a household chat server. There is an open issue about it and the community is understandably frustrated.
+That was a bit of a gut punch. Mattermost had removed the pure-Go embedded search engine that had served small self-hosted instances well for years, and the replacement path requires Elasticsearch and the enterprise license (unsure about the latter, but I think it's true), which is a significant piece of infrastructure to run for a household chat server, and the community is understandably frustrated. 
+
+I want to be clear that I am genuinely grateful for Mattermost. It is a real, well-engineered piece of software that has handled years of our family chat, file sharing, and now AI assistant messages without drama. I understand that Mattermost is a company with employees, they need to make money, and I am not paying them anything. But I am also not going to pay for an Enterprise license for four people.
 
 ## The thing about open source
+But the software is AGPL, and the Bleve code was still there in the git history, in the v10.5.0 tag. The `SearchEngineInterface` contract had not changed between v10 and v11. The integration points, the config struct, the broker wiring, were all stable. Restoring Bleve from v10 into a v11 fork was a well-defined surgical task. Claude code enters into the room...
 
-I want to be clear that I am genuinely grateful for Mattermost. It is a real, well-engineered piece of software that has handled years of our family chat, file sharing, and now AI assistant messages without drama. I understand that Mattermost is a company with employees and I am not paying them anything. I am not going to pay for an Enterprise license for four people.
+...it's absolutely wild what you can do today. Claude Code resurrected the Bleve engine in ten minutes. Two thousand five hundred lines of Go (which I don't understand nor can code in), wired back into a codebase it was removed from, with the tests passing. A few years ago that would have been a careful afternoon of work for a senior Go engineer who knew the codebase. Claude Code did the restoration and I supervised it. It found the right files in the v10 tag, identified the integration points in v11, made the additive changes, updated `go.mod`, and wrote a commit message explaining the reasoning. 
 
-But the software is AGPL, which means I can read the code, understand it, and modify it. And that changes everything.
-
-The Bleve code was still there in the git history, in the v10.5.0 tag. The `SearchEngineInterface` contract had not changed between v10 and v11. The integration points, the config struct, the broker wiring, were all stable. Restoring Bleve from v10 into a v11 fork was a well-defined surgical task.
-
-I mentioned this to Jack and he said something I keep thinking about:
-
-> It's absolutely wild what you can do today. Claude Code resurrected the Bleve engine in maybe ten minutes. Two thousand five hundred lines of Go, wired back into a codebase it was removed from, with the tests passing. A few years ago that would have been a careful afternoon of work for a senior Go engineer who knew the codebase.
-
-That is roughly true. I asked Claude Code to do the restoration and supervised it. It found the right files in the v10 tag, identified the integration points in v11, made the additive changes, updated `go.mod`, and wrote a commit message explaining the reasoning. I reviewed the diff, it looked correct, and I pushed it.
-
-What I find interesting about this is not the speed, though the speed is remarkable. It is that the combination of open source software and capable AI coding tools has meaningfully shifted what a single person can maintain. Code that would previously have required finding a Go contractor or submitting a patch upstream and waiting is now something you can just do yourself in an afternoon, if the license permits it. The "if the license permits it" part is doing a lot of work there. AGPL made this possible in a way that a proprietary codebase would not have.
+The combination of open source software and capable AI coding tools has meaningfully shifted what a single person can maintain. Code that would previously have required finding a Go contractor or submitting a patch upstream and waiting is now something you can just do yourself in a few minutes, if the license permits it. The "if the license permits it" part is doing a lot of work there. AGPL made this possible in a way that a proprietary codebase would not have.
 
 ## What the fork does
 
@@ -180,9 +173,7 @@ The above covers the non-obvious parts. You would also want to add ingress with 
 
 ## Is it worth it
 
-Search works now. Jack can find messages by content, not just channel names. The bulk indexing job created the index files at `/mattermost/data/bleve-indexes` and they have survived several pod restarts since.
-
-The part I keep coming back to is the broader situation. Open source software gives you the right to fork and modify. AI coding tools make exercising that right much cheaper. Together, they mean that a single person running a home server can maintain a meaningful fork of a reasonably large Go codebase, tracking upstream releases, resolving rebase conflicts, and deploying via CI, without this being an unreasonable use of time. That feels like a real change from a few years ago.
+Search works now. The bulk indexing job created the index files at `/mattermost/data/bleve-indexes` and they have survived several pod restarts since.
 
 When the next Mattermost version comes out, the upgrade is a rebase:
 
@@ -193,4 +184,4 @@ git rebase v11.x.0
 git push origin bleve-restore --force-with-lease
 ```
 
-The integration points are stable and conflicts are unlikely. CI rebuilds and redeploys. It has been fine.
+The integration points are stable and conflicts are unlikely. CI rebuilds and redeploys.
