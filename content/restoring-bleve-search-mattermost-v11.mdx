@@ -1,0 +1,196 @@
+export const metadata = {
+  title: "Restoring Bleve search in Mattermost v11 with a fork and Claude Code",
+  slug: "restoring-bleve-search-mattermost-v11",
+  date: "2026-03-21",
+  tags: ["IT", "devops", "AI", "self-hosting"],
+};
+
+I run Mattermost for my four-person household. It replaced Slack after Slack started deleting message history on the free tier, and it has worked well ever since. Until I was reading through the [deprecated features page](https://docs.mattermost.com/product-overview/deprecated-features.html) while planning an upgrade to v11 and found that Bleve search was being removed.
+
+That was a bit of a gut punch. Mattermost had removed the pure-Go embedded search engine that had served small self-hosted instances well for years, and the replacement path requires Elasticsearch, which is a significant piece of infrastructure to run for a household chat server. There is an open issue about it and the community is understandably frustrated.
+
+## The thing about open source
+
+I want to be clear that I am genuinely grateful for Mattermost. It is a real, well-engineered piece of software that has handled years of our family chat, file sharing, and now AI assistant messages without drama. I understand that Mattermost is a company with employees and I am not paying them anything. I am not going to pay for an Enterprise license for four people.
+
+But the software is AGPL, which means I can read the code, understand it, and modify it. And that changes everything.
+
+The Bleve code was still there in the git history, in the v10.5.0 tag. The `SearchEngineInterface` contract had not changed between v10 and v11. The integration points, the config struct, the broker wiring, were all stable. Restoring Bleve from v10 into a v11 fork was a well-defined surgical task.
+
+I mentioned this to Jack and he said something I keep thinking about:
+
+> It's absolutely wild what you can do today. Claude Code resurrected the Bleve engine in maybe ten minutes. Two thousand five hundred lines of Go, wired back into a codebase it was removed from, with the tests passing. A few years ago that would have been a careful afternoon of work for a senior Go engineer who knew the codebase.
+
+That is roughly true. I asked Claude Code to do the restoration and supervised it. It found the right files in the v10 tag, identified the integration points in v11, made the additive changes, updated `go.mod`, and wrote a commit message explaining the reasoning. I reviewed the diff, it looked correct, and I pushed it.
+
+What I find interesting about this is not the speed, though the speed is remarkable. It is that the combination of open source software and capable AI coding tools has meaningfully shifted what a single person can maintain. Code that would previously have required finding a Go contractor or submitting a patch upstream and waiting is now something you can just do yourself in an afternoon, if the license permits it. The "if the license permits it" part is doing a lot of work there. AGPL made this possible in a way that a proprietary codebase would not have.
+
+## What the fork does
+
+The fork is [hnykda/mattermost](https://github.com/hnykda/mattermost) on the `bleve-restore` branch. It is based on the v11.5.x tag with exactly these changes over upstream:
+
+- `server/platform/services/searchengine/bleveengine/` restored from v10.5.0
+- `server/platform/services/searchengine/searchengine.go` adds `BleveEngine` to the `Broker` struct
+- `server/public/model/config.go` adds the `BleveSettings` struct and wires it into config defaults
+- `server/go.mod` adds the `github.com/blevesearch/bleve/v2` dependency
+
+The webapp and client are taken from the official Mattermost release tarball unchanged. Only the server binary is compiled from source, which keeps build times reasonable. The Dockerfile has three stages: compile the binary from the fork, download the official release tarball and swap the binary, then copy everything into a distroless runtime image:
+
+```dockerfile
+ARG MM_VERSION=11.5.1
+ARG GO_VERSION=1.24
+
+# Stage 1: Build server binary from the fork
+FROM golang:${GO_VERSION}-bookworm AS builder
+WORKDIR /build
+COPY mattermost/server/ .
+RUN --mount=type=cache,target=/root/go/pkg/mod \
+    go mod download
+RUN --mount=type=cache,target=/root/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build \
+        -trimpath -tags production \
+        -o bin/linux_amd64/mattermost \
+        ./cmd/mattermost
+
+# Stage 2: Download official release tarball, replace binary
+FROM ubuntu:noble AS package
+ARG MM_VERSION
+RUN apt-get update && apt-get install -y ca-certificates curl && rm -rf /var/lib/apt/lists/*
+RUN curl -fsSL \
+    "https://releases.mattermost.com/${MM_VERSION}/mattermost-${MM_VERSION}-linux-amd64.tar.gz" \
+    | tar -xz \
+    && groupadd --gid 2000 mattermost \
+    && useradd --uid 2000 --gid 2000 --home-dir /mattermost mattermost \
+    && mkdir -p /mattermost/data /mattermost/plugins /mattermost/client/plugins \
+    && chown -R mattermost:mattermost /mattermost
+COPY --from=builder /build/bin/linux_amd64/mattermost /mattermost/bin/mattermost
+
+# Stage 3: Minimal distroless runtime
+FROM gcr.io/distroless/base-debian12
+ENV PATH="/mattermost/bin:${PATH}"
+COPY --from=package --chown=2000:2000 /mattermost /mattermost
+USER mattermost
+EXPOSE 8065
+CMD ["/mattermost/bin/mattermost"]
+```
+
+The fork is included as a git submodule so CI checks out the right commit of the Bleve-restored branch alongside the Dockerfile.
+
+One thing worth knowing: there is no Bleve section in the System Console on Team Edition. The Elasticsearch UI is enterprise-only and Mattermost uses the same UI for both engines, so neither appears. Bleve is configured entirely through environment variables:
+
+```
+MM_BLEVESETTINGS_INDEXDIR=/mattermost/data/bleve-indexes
+MM_BLEVESETTINGS_ENABLEINDEXING=true
+MM_BLEVESETTINGS_ENABLESEARCHING=true
+MM_BLEVESETTINGS_ENABLEAUTOCOMPLETE=true
+```
+
+To populate the index for existing messages, you trigger a bulk indexing job through the API using a personal access token (Profile -> Security -> Personal Access Tokens):
+
+```bash
+curl -X POST https://your-mattermost-url/api/v4/jobs \
+  -H "Authorization: Bearer <your-token>" \
+  -H "Content-Type: application/json" \
+  -d '{"type":"bleve_post_indexing"}'
+```
+
+New messages are indexed automatically as they arrive.
+
+## Deploying on Kubernetes
+
+I run this on a single-node Kubernetes cluster using the official Mattermost Helm chart with a custom image built from the fork. A few things in the values file are worth explaining because they are not obvious.
+
+The deployment strategy has to be `Recreate` rather than `RollingUpdate`. Bleve uses file locks on the index directory, so if a new pod starts before the old one terminates, it will fail trying to open the index files. `Recreate` terminates the old pod first and accepts a short downtime window, which is fine for a household instance.
+
+The other non-obvious part is that the official image uses a distroless base, which has no working directory. Relative paths like `./data/` resolve to `/data/` on the read-only root filesystem and fail silently. All path settings must be absolute:
+
+```yaml
+image:
+  repository: registry.your-host/mattermost-custom
+  # tag is always set by CI (sha-<commit>); no default so accidental deploys fail loudly
+  imagePullPolicy: Always
+
+mysql:
+  enabled: false
+
+externalDB:
+  enabled: true
+  externalDriverType: "postgres"
+  # Chart prepends "postgres://" so omit it here
+  externalConnectionString: "user:pass@your-postgres:5432/mattermost?sslmode=disable"
+
+persistence:
+  data:
+    enabled: true
+    size: 10Gi
+    storageClass: "database-storage"  # Retain policy to survive helm uninstalls
+    accessMode: ReadWriteOnce
+  plugins:
+    enabled: true
+    size: 2Gi
+    storageClass: "database-storage"
+    accessMode: ReadWriteOnce
+
+# Recreate strategy required: Bleve uses file locks on the index directory.
+# RollingUpdate would cause the new pod to fail opening the index while the
+# old pod still holds the lock.
+deploymentStrategy:
+  type: Recreate
+
+extraEnvVars:
+  - name: MM_SERVICESETTINGS_SITEURL
+    value: "https://mattermost.your-domain.com"
+
+  # Absolute paths required - distroless has no WORKDIR so relative
+  # paths (./data/, ./plugins/) resolve to / on the read-only root filesystem
+  - name: MM_FILESETTINGS_DIRECTORY
+    value: "/mattermost/data/"
+  - name: MM_PLUGINSETTINGS_DIRECTORY
+    value: "/mattermost/plugins/"
+  - name: MM_PLUGINSETTINGS_CLIENTDIRECTORY
+    value: "/mattermost/client/plugins"
+
+  # Bleve - indexes stored in the persistent data volume, survive pod restarts
+  - name: MM_BLEVESETTINGS_INDEXDIR
+    value: "/mattermost/data/bleve-indexes"
+  - name: MM_BLEVESETTINGS_ENABLEINDEXING
+    value: "true"
+  - name: MM_BLEVESETTINGS_ENABLESEARCHING
+    value: "true"
+  - name: MM_BLEVESETTINGS_ENABLEAUTOCOMPLETE
+    value: "true"
+
+securityContext:
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  runAsUser: 2000
+  fsGroup: 2000
+
+# /tmp must be writable even with a read-only root filesystem
+extraVolumes:
+  - name: tmp
+    emptyDir: {}
+extraVolumeMounts:
+  - name: tmp
+    mountPath: /tmp
+```
+
+The above covers the non-obvious parts. You would also want to add ingress with TLS, resource limits, and health probe timings adjusted for a slower startup, but those are fairly standard.
+
+## Is it worth it
+
+Search works now. Jack can find messages by content, not just channel names. The bulk indexing job created the index files at `/mattermost/data/bleve-indexes` and they have survived several pod restarts since.
+
+The part I keep coming back to is the broader situation. Open source software gives you the right to fork and modify. AI coding tools make exercising that right much cheaper. Together, they mean that a single person running a home server can maintain a meaningful fork of a reasonably large Go codebase, tracking upstream releases, resolving rebase conflicts, and deploying via CI, without this being an unreasonable use of time. That feels like a real change from a few years ago.
+
+When the next Mattermost version comes out, the upgrade is a rebase:
+
+```bash
+git fetch upstream
+git checkout bleve-restore
+git rebase v11.x.0
+git push origin bleve-restore --force-with-lease
+```
+
+The integration points are stable and conflicts are unlikely. CI rebuilds and redeploys. It has been fine.
