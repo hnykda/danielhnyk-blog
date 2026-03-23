@@ -5,18 +5,18 @@ export const metadata = {
   tags: ["IT", "devops", "AI", "self-hosting"],
 };
 
-I run Mattermost for my four-person household. It replaced Slack after Slack started deleting message history on the free tier, and it has worked well ever since. Until I was reading through the [deprecated features page](https://docs.mattermost.com/product-overview/deprecated-features.html) while planning an upgrade to v11 and found that Bleve search was being removed.
+I run Mattermost for my four-person household. It replaced Slack after Slack started deleting message history on the free tier, and it has worked well ever since. Until I was reading through the [deprecated features page](https://docs.mattermost.com/product-overview/deprecated-features.html) while planning an upgrade to v11 and found that they had removed Bleve search.
 
-That was a bit of a gut punch. Mattermost had removed the pure-Go embedded search engine that had served small self-hosted instances well for years, and the replacement path requires Elasticsearch and the enterprise license (unsure about the latter, but I think it's true), which is a significant piece of infrastructure to run for a household chat server, and the community is understandably frustrated. 
+Mattermost dropped the pure-Go embedded search engine that had served small self-hosted instances for years. The replacement path requires Elasticsearch and the enterprise license (unsure about the latter, but I think it's true). That is a lot of infrastructure for a household chat server, and the community is frustrated.
 
-I want to be clear that I am genuinely grateful for Mattermost. It is a real, well-engineered piece of software that has handled years of our family chat, file sharing, and now AI assistant messages without drama. I understand that Mattermost is a company with employees, they need to make money, and I am not paying them anything. But I am also not going to pay for an Enterprise license for four people.
+I am grateful for Mattermost. It is well-engineered software that has handled years of our family chat and file sharing without drama. Mattermost is a company with employees, they need to make money, and I am not paying them anything. But I am also not going to pay for an Enterprise license for four people.
 
 ## The thing about open source
-But the software is AGPL, and the Bleve code was still there in the git history, in the v10.5.0 tag. The `SearchEngineInterface` contract had not changed between v10 and v11. The integration points, the config struct, the broker wiring, were all stable. Restoring Bleve from v10 into a v11 fork was a well-defined surgical task. Claude code enters into the room...
+But the software is AGPL, and the Bleve code was still there in the git history, in the v10.5.0 tag. The `SearchEngineInterface` contract had not changed between v10 and v11. The integration points, the config struct, the broker wiring were all stable. Restoring Bleve from v10 into a v11 fork was a well-defined surgical task. Claude Code enters the room...
 
-...it's absolutely wild what you can do today. Claude Code resurrected the Bleve engine in ten minutes. Two thousand five hundred lines of Go (which I don't understand nor can code in), wired back into a codebase it was removed from, with the tests passing. A few years ago that would have been a careful afternoon of work for a senior Go engineer who knew the codebase. Claude Code did the restoration and I supervised it. It found the right files in the v10 tag, identified the integration points in v11, made the additive changes, updated `go.mod`, and wrote a commit message explaining the reasoning. 
+...it resurrected the Bleve engine in ten minutes. Two thousand five hundred lines of Go (which I don't understand nor can code in), wired back into a codebase it was removed from, tests passing. A few years ago a senior Go engineer who knew the codebase would have spent a careful afternoon on this. I supervised while Claude Code found the right files in the v10 tag, identified the integration points in v11, made the additive changes, updated `go.mod`, and wrote a commit message explaining the reasoning.
 
-The combination of open source software and capable AI coding tools has meaningfully shifted what a single person can maintain. Code that would previously have required finding a Go contractor or submitting a patch upstream and waiting is now something you can just do yourself in a few minutes, if the license permits it. The "if the license permits it" part is doing a lot of work there. AGPL made this possible in a way that a proprietary codebase would not have.
+Open source plus capable AI coding tools let a single person maintain far more than before. Code that would have required a Go contractor or an upstream patch and a long wait, you can do yourself in minutes, if the license permits it. The "if the license permits it" part is doing a lot of work there. AGPL made this possible. A proprietary codebase would not have.
 
 ## What the fork does
 
@@ -25,9 +25,9 @@ The fork is [hnykda/mattermost](https://github.com/hnykda/mattermost) on the `bl
 - `server/platform/services/searchengine/bleveengine/` restored from v10.5.0
 - `server/platform/services/searchengine/searchengine.go` adds `BleveEngine` to the `Broker` struct
 - `server/public/model/config.go` adds the `BleveSettings` struct and wires it into config defaults
-- `server/go.mod` adds the `github.com/blevesearch/bleve/v2` dependency
+- `server/go.mod` adds `github.com/blevesearch/bleve/v2`
 
-The webapp and client are taken from the official Mattermost release tarball unchanged. Only the server binary is compiled from source, which keeps build times reasonable. The Dockerfile has three stages: compile the binary from the fork, download the official release tarball and swap the binary, then copy everything into a distroless runtime image:
+The webapp and client come from the official Mattermost release tarball unchanged. Only the server binary is compiled from source, which keeps build times reasonable. The Dockerfile has three stages: compile the binary from the fork, download the official release tarball and swap the binary, copy into a distroless runtime image:
 
 ```dockerfile
 ARG MM_VERSION=11.5.1
@@ -70,7 +70,7 @@ CMD ["/mattermost/bin/mattermost"]
 
 The fork is included as a git submodule so CI checks out the right commit of the Bleve-restored branch alongside the Dockerfile.
 
-One thing worth knowing: there is no Bleve section in the System Console on Team Edition. The Elasticsearch UI is enterprise-only and Mattermost uses the same UI for both engines, so neither appears. Bleve is configured entirely through environment variables:
+There is no Bleve section in the System Console on Team Edition. The Elasticsearch UI is enterprise-only and Mattermost uses the same UI for both engines, so neither appears. You configure Bleve through environment variables:
 
 ```
 MM_BLEVESETTINGS_INDEXDIR=/mattermost/data/bleve-indexes
@@ -92,11 +92,11 @@ New messages are indexed automatically as they arrive.
 
 ## Deploying on Kubernetes
 
-I run this on a single-node Kubernetes cluster using the official Mattermost Helm chart with a custom image built from the fork. A few things in the values file are worth explaining because they are not obvious.
+I run this on a single-node Kubernetes cluster using the official Mattermost Helm chart with a custom image built from the fork. A few things in the values file need explaining because they are not obvious.
 
-The deployment strategy has to be `Recreate` rather than `RollingUpdate`. Bleve uses file locks on the index directory, so if a new pod starts before the old one terminates, it will fail trying to open the index files. `Recreate` terminates the old pod first and accepts a short downtime window, which is fine for a household instance.
+The deployment strategy has to be `Recreate` rather than `RollingUpdate`. Bleve uses file locks on the index directory, so if a new pod starts before the old one terminates, it will fail trying to open the index files. `Recreate` kills the old pod first and accepts a short downtime window. Fine for a household instance.
 
-The other non-obvious part is that the official image uses a distroless base, which has no working directory. Relative paths like `./data/` resolve to `/data/` on the read-only root filesystem and fail silently. All path settings must be absolute:
+The other non-obvious part: the official image uses a distroless base, which has no working directory. Relative paths like `./data/` resolve to `/data/` on the read-only root filesystem and fail silently. All path settings must be absolute:
 
 ```yaml
 image:
@@ -169,15 +169,15 @@ extraVolumeMounts:
     mountPath: /tmp
 ```
 
-The above covers the non-obvious parts. You would also want to add ingress with TLS, resource limits, and health probe timings adjusted for a slower startup, but those are fairly standard.
+The above covers the non-obvious parts. You would also want ingress with TLS, resource limits, and health probe timings adjusted for a slower startup, but those are standard.
 
 ## One more thing: tuning it for our household
 
-Once search was working, I noticed something slightly annoying. The restored Bleve code uses the `standard` analyzer, which just tokenizes at word boundaries and lowercases. It works, but it means searching "running" won't find "run", and common filler words like "the" or "is" get indexed and matched against.
+Once search was working, I noticed an annoyance. The restored Bleve code uses the `standard` analyzer, which tokenizes at word boundaries and lowercases. It works, but searching "running" won't find "run", and common filler words like "the" or "is" get indexed and matched against.
 
-More relevantly for us: our household messages are a mix of English and Czech. "A", "ale", "bez", "bylo" — Czech stop words that appear in almost every sentence and add noise to search results.
+More relevant for us: our household messages are a mix of English and Czech. "A", "ale", "bez", "bylo", Czech stop words that appear in most sentences and add noise to search results.
 
-Since I already had the fork open, fixing this was a small change. Bleve ships with an `en` analyzer (Porter stemming, English stop words, possessive filter) and a `cs` stop word list, both bundled in the same package with no extra dependencies. I wrote a custom `en_cs` analyzer that combines them:
+Since I had the fork open, fixing this was a small change. Bleve ships with an `en` analyzer (Porter stemming, English stop words, possessive filter) and a `cs` stop word list, both bundled in the same package with no extra dependencies. I wrote a custom `en_cs` analyzer that combines them:
 
 - Unicode tokenization
 - English possessive filter (`'s`)
@@ -186,15 +186,15 @@ Since I already had the fork open, fixing this was a small change. Bleve ships w
 - Czech stop words
 - Porter stemmer
 
-Twenty-odd lines of Go, and now the search index is actually tuned for how we write. This is the part of the story I keep thinking about. Not just that I could restore something that was removed, but that I could then keep going and make it better for my specific situation — something no upstream would ever prioritize for a four-person Czech-English household, but that was completely within reach once I was already in the codebase.
+Twenty-odd lines of Go, and now the search index is tuned for how we write. I keep thinking about this part. I restored something that was removed, and then I kept going and made it better for my specific situation. No upstream would prioritize a four-person Czech-English household, but it was within reach once I was in the codebase.
 
-The new mapping only applies to freshly created indexes, so after deploying I had to purge the old ones and re-index. The purge API was also something restored in the fork, which felt appropriately circular.
+The new mapping only applies to fresh indexes, so after deploying I had to purge the old ones and re-index. The purge API was also something restored in the fork. Full circle.
 
 ## Is it worth it
 
-Search works now, in both languages. Jack can find messages by content, stems match correctly for English, and Czech filler words no longer dominate the results. The index files have survived several pod restarts and a few deploys since.
+Search works now, in both languages. Jack can find messages by content, stems match for English, and Czech filler words no longer dominate the results. The index files have survived several pod restarts and a few deploys.
 
-When the next Mattermost version comes out, the upgrade is a rebase:
+The upgrade path for the next Mattermost version is a rebase:
 
 ```bash
 git fetch upstream
@@ -203,4 +203,4 @@ git rebase v11.x.0
 git push origin bleve-restore --force-with-lease
 ```
 
-The integration points are stable and conflicts are unlikely. CI rebuilds and redeploys.
+The integration points are stable. Conflicts are unlikely. CI rebuilds and redeploys.
