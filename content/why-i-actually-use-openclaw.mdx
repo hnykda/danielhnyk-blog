@@ -1,0 +1,124 @@
+export const metadata = {
+  title: "Why I Actually Use OpenClaw (And Why It's Not About the Tasks)",
+  slug: "why-i-actually-use-openclaw",
+  date: "2026-04-05",
+  tags: ["IT", "AI", "OpenClaw"],
+};
+
+It's fashionable to dump on OpenClaw right now. I use it every day and want to explain why, because most people are measuring it on the wrong axis.
+
+This grew in me gradually and boiled over today when Anthropic started charging per request when used via OpenClaw (fair, but pricey). I spent some time rewriting my skills into MCP servers so I can use them from claude.ai and Claude Code too, and in the process I had to confront what I'd lose.
+
+Turns out: a lot. But not what you'd expect.
+
+## The Non-Obvious Distinction
+
+The distinction I keep coming back to: there's a difference between **meta use** and **tasks**. OpenClaw excels at the former, and does fine at the latter, but for specific tasks I don't see meaningful alpha over vanilla Claude Code with skills and MCPs. Claude Code is excellent at executing a well-defined job. What OpenClaw gives me is everything *around* the job: the harness, the memory, the context, the communication, the sharing.
+
+## The Meta: What You Can't Replicate Elsewhere
+
+### 1. Shared Multi-User Agents
+
+My partner and I love having shared agents. We have an agent for our household (tracks shopping lists, helps with planning), a relationship coach, an intimacy coach, and so on. Both of us interact with the same agent, both of us shape it. Shared ownership changes how it develops.
+
+### 2. Headless Gateway
+
+OpenClaw runs as a headless gateway. Claude Code needs a computer running somewhere, which matters when you travel and constantly open and close the laptop jumping between a bus, a café, a train. The agent doesn't care about my laptop's lid state. It's running on a VPS, doing its thing.
+
+### 3. Real Scheduled Tasks
+
+Because it's headless, scheduled tasks work. It does the job regardless of whether my device is on and delivers results to a channel I can read later. If there's an action needed, like fixing a failing pod, it handles that without me, in the middle of the night.
+
+### 4. Nodes
+
+It can use other devices on the network. It can use my browser on my laptop if I allow it. The agent isn't trapped in one box.
+
+### 5. Context Management That Doesn't Make Me Cry
+
+With [lossless-claw](https://github.com/Martian-Engineering/lossless-claw), context management stops being a problem. I used to watch the "3% before compaction" warnings with dread, compaction would hit, and I'd lose everything. Lossless-claw handles it: it summarizes context hierarchically, automatically, and I stop worrying.
+
+### 6. Everything Is Mine
+
+This is the one that gets me emotional. It's all stupid markdowns. `IDENTITY`, `USER`, `SOUL`, `TOOLS` — it's all mine, I can take it to a different shop if this goes down. It's not in the cloud. It's not locked to a specific vendor. Just stupid markdown text files. The LCM data? An SQLite database. All my skills? Markdowns, some of which use SQLite. OpenClaw's own config is a stupid JSON file.
+
+The agents can search through past sessions because those are just JSON logs they can grep or SQLite-query. No network hops. No API calls. Just files on disk.
+
+### 7. Channel-Based Communication
+
+We use self-hosted Mattermost to communicate with our agents: dedicated channels, DMs, threads, rendered markdown, images. The agent holds context and memory across all of these. Starting a new conversation doesn't lose context, and you don't have to dig through old sessions from a month ago with `--resume`.
+
+It also runs in parallel. I can send 6 messages and it replies to each in parallel. Claude Code's TUI is a single thread (there's at least `/btw <something>` now, but that disappears after one hit).
+
+## Concrete Examples
+
+### The Relationship Coach
+
+My partner and I like specific relationship and communication philosophies: NVC, IFS, Radical Honesty, and others. We have an agent who helps us practice and maintain these. I published most of the skill here: [clawhub.ai/hnykda/relationship-coach](https://clawhub.ai/hnykda/relationship-coach).
+
+The agent is gentle, knows a lot about us, and uses the skill to maintain info about our dynamics, "golden moments to remember and tap into when things are hard", and day-to-day relationship maintenance.
+
+In practice: sometimes we send it a message asking *"we have 20 minutes before friends come over for dinner, read through the books on what could help us connect and prepare for them"*, or *"we just had an argument about X, she said Y and I said Z, what do we do?"* It reminds us that it doesn't matter, that we should calm down and wait until emotions don't run so high. Then it suggests that I tell my partner something it knows she's 90% likely to need to hear right now, and she can remind me not to worry about the thing I always worry about, because it knows us.
+
+The old cliché about arguments is that sometimes you need very little to get past them. If someone who knew you both well could show up in those moments, it would help. That's what this is.
+
+We talk to this bot in common channels and in DMs. It has context across all of them and doesn't forget, so it connects recent discussions instead of starting fresh or guessing from sparse memory.
+
+### The Housie
+
+Our "housie" bot deals with shopping lists, reminds us about default stuff like watering flowers, and helps us find calendar slots when we're thinking about inviting friends over for dinner. Like: *"find a spot that would fit well, some Monday when we are both free and my daughter is at home too."* It's also our Home Assistant interface for controlling the smart home.
+
+### Ember
+
+We have another agent called Ember for more intimate moments. This one has about 40 books ingested on meditation, presence, tantra, yoga, dating, polarity, and we ask it to propose date night ideas or help deal with problems we might have in that space.
+
+### Multi-Agent Steering
+
+All of these can be steered. Both of us. Just by telling them *"do this more and less of that"* via Mattermost chats. We both form them into what we want them to be. And they can talk to each other: you can tell *"hey, Agent A, you learned about me X, can you share it with Agent B and C"*, or *"hey, ask Agent B to tell you about Y."*
+
+## The Search Library Skill
+
+One skill I built that I'm proud of: I throw a book in PDF/EPUB/MOBI at the agent, it breaks it down by chapter and uses [Voyage AI](https://voyage.ai)'s large-3-context to embed the chunks (200M tokens free, thanks!) and stores them in a local SQLite database. Any agent can then search this knowledge base via embedding similarity.
+
+You can ask *"I'm scared of X, what should I do?"* and the agent either prompts you to tell it more, or forms 5 different query variations, embeds them, and searches our embedding library for relevant sources. It reads the relevant chunks, gathers more context, reasons about it, and returns pointers and synthesized views. This is what powers the relationship and intimacy coaches.
+
+## On Tasks and Skills
+
+If most of your skills are specific tasks and you can hold the context and setup in a set of markdowns, it doesn't matter that much whether you use OpenClaw or Claude Code. You can do fine with Claude Code, and that's how I handle close-to-dev tasks too.
+
+But I still do a lot of manual hand-holding to write down learnings before auto-compaction scraps them. I'm scared of killing a conversation. I don't have threading, so I have to wait.
+
+The skills we have are useful because they're moldable and specific to our setup. We have skills for:
+
+- **Google Workspace CLI** — with instructions on how to switch between different accounts (mine, work, my partner's)
+- **Mattermost API** — how to search effectively, how to thread discussions properly
+- **Cron jobs** — written the way I like them
+- **Home Assistant** — controlling our smart home
+- **LCM search** — querying the lossless context
+- **Notion** — integration with our notes
+- **Planning** — e.g., using pre-mortem when planning anything important
+- **AGENT_SHARED.md management** — a shared document every agent gets copied into context (things that are the same for all)
+- **Creating new skills** — honoring my preferred structuring conventions
+
+Boring infrastructure skills. They support the harness.
+
+I also have around 10 crons and skills for work, but that's for another post.
+
+## Deployment and Security
+
+I run everything on a single machine: a €10/month VPS that also hosts several dozen of my hobby and professional services. OpenClaw does most operations on this machine and communicates with us only via the Mattermost instance, also on the same machine.
+
+It can do a lot. If the agent decided to go rogue in the middle of the night, it could. It hasn't, as far as I can tell. The machine is on my Tailscale network, so it connects to other nodes easily.
+
+Is this robust engineering? Maybe. Does it work? Yes.
+
+## The Bottom Line
+
+OpenClaw's alpha is in the *meta*: persistent agents multiple people can shape, running headlessly, holding context across conversations and channels, stored as plain files you own, steerable over time. Claude Code executes tasks well. OpenClaw gives you the frame around the tasks.
+
+If you care about any of that, share/repost — I'm happy to go deeper on any of these if there's interest.
+
+---
+
+*You can find the relationship coach skill at [clawhub.ai/hnykda/relationship-coach](https://clawhub.ai/hnykda/relationship-coach). Our other agents are similar in spirit, just pointed at different domains with different reference libraries.*
+
+*I'm [@hnykda](https://twitter.com/hnykda) on X. Because I need to get out of the bus right now, sorry.*
