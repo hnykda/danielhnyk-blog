@@ -15,7 +15,7 @@ steps:
     settings:
       repo: registry.container-registry:5000/danielhnyk-blog
       registry: *registry
-      tag: ${CI_COMMIT_SHA:0:8}
+      tag: sha-${CI_COMMIT_SHA:0:8}
       platforms: linux/amd64
       insecure: true
       buildkit_config: *buildkit_config
@@ -30,4 +30,4 @@ steps:
     commands:
       - mkdir -p ~/.kube
       - echo "$KUBECONFIG_DATA" | base64 -d > ~/.kube/config
-      - helm upgrade --install blog ./chart --namespace apps --rollback-on-failure --timeout 5m --set image.tag=${CI_COMMIT_SHA:0:8}
+      - helm upgrade --install blog ./chart --namespace apps --rollback-on-failure --timeout 5m --set image.tag=sha-${CI_COMMIT_SHA:0:8}
