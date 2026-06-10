@@ -19,7 +19,7 @@ Well, me and Fable did it in less than a day of occasional babysitting (me babys
 
 ## What it built
 
-One pod. N persistent, interactive `claude` sessions, one per agent, each kept alive in tmux. Each session talks to Mattermost through a small MCP server speaking the Claude Code [channels protocol](https://code.claude.com/docs/en/channels-reference):
+N persistent, interactive `claude` sessions, one per agent, each kept alive in tmux. Each session talks to Mattermost through a small MCP server speaking the Claude Code [channels protocol](https://code.claude.com/docs/en/channels-reference):
 
 ```
                         ┌─────────────────────┐
@@ -59,7 +59,7 @@ The pieces I cared about from the old post, and how they map:
 
 **Cron.** A ~200 line Python scheduler ticks every 30 seconds and, when a job fires, posts the prompt to Mattermost as a `@cron` bot that @-mentions the target agent. Delivery rides the normal channel pipeline, which means catch-up replay if the agent was down, and the reply threads under the cron post as a visible audit trail. Agents schedule their own jobs by dropping a YAML file in a shared directory, so "remind me every weekday at 2" works conversationally again. No queue, no Redis. Mattermost is the queue. Mission-critical workloads survived the migration, including the cron job that tells me to walk on the treadmill at 2 PM. Disabled, obviously.
 
-**Memory.** A timer archives session transcripts into a full-text-searchable SQLite, with an optional embedding index on top, so compaction never loses anything for good. The agents' personas, skills, and shared rules are read-only symlinks into the image, so every soul is a file in git: my relationship coach gets code review before she's allowed to change her mind. My 67-book embedded library (the RAG database I was proudest of in the OpenClaw setup) came along too, ported off its dedicated Python venv onto plain REST calls. The skill's own docs claimed 29 books; the database said 67. The agents have apparently been reading behind my back.
+**Memory.** A timer archives session transcripts into a full-text-searchable SQLite, with an optional embedding index on top, so compaction never loses anything for good. The agents' personas, skills, and shared rules are read-only symlinks into the image, so every soul is a file in git: my relationship coach gets code review before she's allowed to change her mind. My 67-book embedded library (the RAG database I was proudest of in the OpenClaw setup) came along too, ported off its dedicated Python venv onto plain REST calls. The skill's own docs claimed 29 books; the database said 67. The agents have apparently been reading behind my back. I wrote up the full context story (how parallel conversations stay apart, what compaction can and cannot lose) in [talon's docs](https://github.com/hnykda/talon/blob/main/docs/context-management.md). The short version: Mattermost plus the archive make the system effectively append-only, so a [lossless-claw](https://github.com/Martian-Engineering/lossless-claw) style lossless context engine could very likely be built right on top of it.
 
 The tally for all of this: about 1,750 lines of TypeScript for the channel server, a 490-line bash supervisor, three small Python tools, and a Helm chart. Claude Code brings everything else: the tools, the skills, the subagents, the compaction, the auth.
 
