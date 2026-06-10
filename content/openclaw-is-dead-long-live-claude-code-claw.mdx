@@ -1,0 +1,63 @@
+export const metadata = {
+  title: "OpenClaw Is Dead, Long Live Claude Code Claw",
+  slug: "openclaw-is-dead-long-live-claude-code-claw",
+  date: "2026-06-10",
+  tags: ["IT", "AI", "OpenClaw", "Claude Code"],
+};
+
+Two months ago I wrote [why I actually use OpenClaw](/why-i-actually-use-openclaw). The short version: the tasks were never the point. The point was the meta. Shared agents my partner and I both shape, a headless gateway that doesn't care whether my laptop lid is open, scheduled jobs that fix pods at 3 AM, memory that survives.
+
+I also wrote this beautiful, magnificent [tweet](https://x.com/hnykda/status/2040899560571031681) about what OpenClaw is good at, to capitalize on the 3k followers I got through the sheer luck of [standing next to a colleague who got hacked](https://x.com/hnykda/status/2036414330267193815). The tweet got totally ignored by the whole world. So poop on all of you.
+
+Then Anthropic decided to ban me. Fine, not ban. They looked at my OpenClaw setup burning subscription tokens through a third-party harness and said: "start paying by usage, you!" Which is fair. It is also pricey, and I wanted none of it.
+
+So: be the change you want to see in the world, right?
+
+I watched Fable get its skull blown off by yet another model release week, and figured the timing was good. I pointed it at my custom OpenClaw fork and gave it one job: read my glorious blog post, rip out the short list of things I actually use, and rewrite that minimal core from scratch on **native Claude Code**. Native harness, claude.ai Max subscription, flat rate, and the parents stop complaining about me sneaking out the window.
+
+Well, Fable did it in a day. And it's glorious.
+
+## What it built
+
+One pod. N persistent, interactive `claude` sessions, one per agent, each kept alive in tmux. Each session talks to Mattermost through a small MCP server speaking the Claude Code [channels protocol](https://code.claude.com/docs/en/channels-reference):
+
+```
+            ┌─────────────────────  pod (1 replica)  ─────────────────────┐
+            │  supervisor (bash)                                          │
+            │   • symlinks git-managed config into each workdir           │
+            │   • health loop, restarts, transcript archiver, cron        │
+            │                                                             │
+            │  tmux: agent-jack          tmux: agent-{ace,theo,housie,…}  │
+            │  ┌──────────────────────┐  ┌──────────────────────┐         │
+            │  │ claude --agent jack  │  │ claude --agent <n>   │         │
+            │  │   ▲ events │ reply   │  │  own bot token,      │         │
+            │  │   └─ stdio MCP ─┘    │  │  own channels        │         │
+            │  │ channel-server (TS)  │  │ channel-server       │         │
+            │  └─────────┬────────────┘  └─────────┬────────────┘         │
+            │  PVC: ~/.claude creds+transcripts, agents/<n>/ workdirs     │
+            └────────────┼─────────────────────────┼──────────────────────┘
+                         ▼                         ▼
+                    Mattermost REST/WS  (per-agent bot accounts)
+```
+
+The pieces I cared about from the old post, and how they map:
+
+**Channels.** The channel server forwards Mattermost posts into the session as tagged events (channel, sender, thread root, is-it-a-DM) and exposes `reply`, `read_thread`, `read_channel_history`, `search_posts` as tools. Routing is config, not code: per agent you declare which channels it listens to, whether each channel is mention-gated or read-everything (`my-channel:mention` suffixes), and which humans can reach it. Sender gating, never room gating. Six agents, six bot accounts, zero routing surprises.
+
+**Threads and sessions.** One agent is one session is one context window, and that would be a mess with parallel conversations, so the main session acts as a router and hands each Mattermost thread to its own subagent with its own clean context (Claude Code's agent teams make these continuable, so a thread keeps its working state between messages). DMs stay in the main lane. The router prefetches the thread, spawns in the background, and posts the result back into the right `root_id`. Mattermost stays the ground truth: anything compaction eats can be re-read from the thread itself.
+
+**Models.** Routers run sonnet at medium effort, because routing and one-liners are not intelligence-sensitive. Real work goes to opus subagents picked per spawn. Opus 4.8 costs about 1.7x sonnet per token and plans well enough at decent effort that it often uses fewer tokens overall on multi-step work. The registry exposes `effort` per session, so the whole cost-quality knob lives in one YAML file.
+
+**Cron.** A ~200 line Python scheduler ticks every 30 seconds and, when a job fires, posts the prompt to Mattermost as a `@cron` bot that @-mentions the target agent. Delivery rides the normal channel pipeline, which means catch-up replay if the agent was down, and the reply threads under the cron post as a visible audit trail. Agents schedule their own jobs by dropping a YAML file in a shared directory, so "remind me every weekday at 2" works conversationally again. No queue, no Redis. Mattermost is the queue.
+
+**Memory.** A timer archives session transcripts into a full-text-searchable SQLite, with an optional embedding index on top, so compaction never loses anything for good. The agents' personas, skills, and shared rules are read-only symlinks into the image, so every soul is a file in git and changing one is a PR. My 67-book embedded library (the RAG database I was proudest of in the OpenClaw setup) came along too, ported off its dedicated Python venv onto plain REST calls.
+
+The tally for all of this: about 1,750 lines of TypeScript for the channel server, a 490-line bash supervisor, three small Python tools, and a Helm chart. Claude Code brings everything else: the tools, the skills, the subagents, the compaction, the auth.
+
+## Should you use it?
+
+Probably not directly. This is tailored to exactly my needs and implements the minimal subset of features I personally use. No attachments over the bridge, single pod, one experimental CLI flag doing heavy lifting, and it has been tested by precisely one household.
+
+But if you want to build your own, I published a scrubbed, generic version with two example agents and full setup docs: [hnykda/talon](https://github.com/hnykda/talon). Clone it, create two Mattermost bots, follow the README, and you have a fleet of persistent Claude Code agents on a flat-rate subscription.
+
+The king is dead. The new one answers in threads.
