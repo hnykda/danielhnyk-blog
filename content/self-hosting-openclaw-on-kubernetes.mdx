@@ -7,6 +7,9 @@ export const metadata = {
   tags: ["IT", "devops", "AI"],
 };
 
+> **Update (June 2026):** Anthropic [blocked Claude subscription access through third-party harnesses](https://www.theregister.com/2026/02/20/anthropic_clarifies_ban_third_party_claude_access/), which killed this setup. I rebuilt the whole thing on native Claude Code (still self-hosted on Kubernetes, still Mattermost): read [OpenClaw Is Dead, Long Live Claude Code Talon](/openclaw-is-dead-long-live-claude-code-talon) or go straight to the open-source replacement, [talon](https://github.com/hnykda/talon).
+
+
 I've been running [OpenClaw](https://openclaw.ai) — an open-source AI assistant platform — on a single-node Kubernetes cluster for a few months now. It connects to Mattermost, has browser automation, and runs various tools. Here's how I set it up.
 
 ## Why self-host

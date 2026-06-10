@@ -7,6 +7,9 @@ export const metadata = {
   tags: ["IT", "AI", "OpenClaw"],
 };
 
+> **Update (June 2026):** Anthropic [blocked Claude subscription access through third-party harnesses](https://www.theregister.com/2026/02/20/anthropic_clarifies_ban_third_party_claude_access/), which killed this setup. I rebuilt the whole thing on native Claude Code (still self-hosted on Kubernetes, still Mattermost): read [OpenClaw Is Dead, Long Live Claude Code Talon](/openclaw-is-dead-long-live-claude-code-talon) or go straight to the open-source replacement, [talon](https://github.com/hnykda/talon).
+
+
 It's fashionable to dump on OpenClaw right now. I use it every day and want to explain why, because most people are measuring it on the wrong axis.
 
 This grew in me gradually and boiled over today when Anthropic started charging per request when used via OpenClaw (fair, but pricey). I spent some time rewriting my skills into MCP servers so I can use them from claude.ai and Claude Code too, and in the process I had to confront what I'd lose.

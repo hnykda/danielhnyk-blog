@@ -7,6 +7,9 @@ export const metadata = {
   tags: ["IT", "AI", "devops"],
 };
 
+> **Update (June 2026):** Anthropic [blocked Claude subscription access through third-party harnesses](https://www.theregister.com/2026/02/20/anthropic_clarifies_ban_third_party_claude_access/), which killed this setup. I rebuilt the whole thing on native Claude Code (still self-hosted on Kubernetes, still Mattermost): read [OpenClaw Is Dead, Long Live Claude Code Talon](/openclaw-is-dead-long-live-claude-code-talon) or go straight to the open-source replacement, [talon](https://github.com/hnykda/talon).
+
+
 I run [OpenClaw](https://openclaw.ai) self-hosted on Kubernetes with [Mattermost](https://mattermost.com) as the primary chat surface. Over time, I've set up four separate AI agents — each with its own personality, workspace, and purpose — all running in one gateway process. Getting the routing right was non-trivial, so here's what I learned.
 
 ## The Setup
