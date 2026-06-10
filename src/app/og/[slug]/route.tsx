@@ -3,8 +3,9 @@ import fs from "fs";
 import path from "path";
 import { getAllSlugs } from "@/lib/posts";
 
-export const size = { width: 1200, height: 630 };
-export const contentType = "image/png";
+export const dynamic = "force-static";
+
+const size = { width: 1200, height: 630 };
 
 export function generateStaticParams() {
   return getAllSlugs().map((slug) => ({ slug }));
@@ -32,11 +33,11 @@ function loadFont(file: string): Buffer | undefined {
   }
 }
 
-interface ImageProps {
+interface RouteContext {
   params: Promise<{ slug: string }>;
 }
 
-export default async function OpenGraphImage({ params }: ImageProps) {
+export async function GET(_req: Request, { params }: RouteContext) {
   const { slug } = await params;
   const post = await import(`../../../../content/${slug}.mdx`);
   const { title, date, tags } = post.metadata;

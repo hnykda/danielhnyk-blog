@@ -79,6 +79,10 @@ export async function generateMetadata({
       getPostExcerpt(slug) ??
       `A post by Daniel Hnyk.`;
     const url = `/${slug}/`;
+    // Hero image (webp) if the post has one, otherwise the generated card
+    const image = post.metadata.image
+      ? { url: post.metadata.image }
+      : { url: `/og/${slug}`, width: 1200, height: 630, type: "image/png" };
 
     return {
       title,
@@ -95,12 +99,14 @@ export async function generateMetadata({
         publishedTime: date,
         authors: ["Daniel Hnyk"],
         tags,
+        images: [image],
       },
       twitter: {
         card: "summary_large_image",
         creator: "@hnykda",
         title,
         description,
+        images: [image],
       },
     };
   } catch {

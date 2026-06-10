@@ -27,7 +27,9 @@ The fork is [hnykda/mattermost](https://github.com/hnykda/mattermost) on the `bl
 - `server/platform/services/searchengine/bleveengine/` restored from v10.5.0
 - `server/platform/services/searchengine/searchengine.go` adds `BleveEngine` to the `Broker` struct
 - `server/public/model/config.go` adds the `BleveSettings` struct and wires it into config defaults
+- `server/channels/api4/bleve.go` restores the `/api/v4/bleve/purge_indexes` endpoint
 - `server/go.mod` adds `github.com/blevesearch/bleve/v2`
+- `server/platform/services/searchengine/bleveengine/czech_filters.go` adds Czech stemming and diacritics folding (added later, see the update at the end)
 
 The webapp and client come from the official Mattermost release tarball unchanged. Only the server binary is compiled from source, which keeps build times reasonable. The Dockerfile has three stages: compile the binary from the fork, download the official release tarball and swap the binary, copy into a distroless runtime image:
 
@@ -189,6 +191,8 @@ Since I had the fork open, fixing this was a small change. Bleve ships with an `
 - Porter stemmer
 
 Twenty-odd lines of Go, and now the search index is tuned for how we write. I keep thinking about this part. I restored something that was removed, and then I kept going and made it better for my specific situation. No upstream would prioritize a four-person Czech-English household, but it was within reach once I was in the codebase.
+
+*(Update: this analyzer removed Czech noise words and nothing else. Czech words kept their endings in the index, so "strom" still failed to find "stromy". The real fix came three months later, see the update at the end.)*
 
 The new mapping only applies to fresh indexes, so after deploying I had to purge the old ones and re-index. The purge API was also something restored in the fork. Full circle.
 
