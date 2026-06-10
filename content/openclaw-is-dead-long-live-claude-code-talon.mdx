@@ -22,23 +22,32 @@ Well, me and Fable did it in less than a day of occasional babysitting (me babys
 One pod. N persistent, interactive `claude` sessions, one per agent, each kept alive in tmux. Each session talks to Mattermost through a small MCP server speaking the Claude Code [channels protocol](https://code.claude.com/docs/en/channels-reference):
 
 ```
-            ┌─────────────────────  pod (1 replica)  ─────────────────────┐
-            │  supervisor (bash)                                          │
-            │   • symlinks git-managed config into each workdir           │
-            │   • health loop, restarts, transcript archiver, cron        │
-            │                                                             │
-            │  tmux: agent-jack          tmux: agent-{ace,theo,housie,…}  │
-            │  ┌──────────────────────┐  ┌──────────────────────┐         │
-            │  │ claude --agent jack  │  │ claude --agent <n>   │         │
-            │  │   ▲ events │ reply   │  │  own bot token,      │         │
-            │  │   └─ stdio MCP ─┘    │  │  own channels        │         │
-            │  │ channel-server (TS)  │  │ channel-server       │         │
-            │  └─────────┬────────────┘  └─────────┬────────────┘         │
-            │  PVC: ~/.claude creds+transcripts, agents/<n>/ workdirs     │
-            └────────────┼─────────────────────────┼──────────────────────┘
-                         ▼                         ▼
-                    Mattermost REST/WS  (per-agent bot accounts)
+                        ┌─────────────────────┐
+                        │      Mattermost     │   channels, threads, DMs
+                        │ (one bot per agent) │
+                        └──────────┬──────────┘
+                  REST ▲           │ WebSocket
+        (reply, read_thread, …)    │ (new posts)
+                       │           ▼
+                        ┌─────────────────────┐
+                        │    channel server   │   filters: who may talk to
+                        │   (MCP, per agent)  │   this agent, which channels,
+                        └──────────┬──────────┘   mention-gated or not
+                 tool calls ▲      │
+                            │      ▼ tagged events (sender, channel, root_id)
+                        ┌─────────────────────┐
+                        │    router session   │   claude --agent <name>,
+                        │  (persistent, tmux) │   answers DMs, routes threads
+                        └──────────┬──────────┘
+                                   │ spawns (background, model per task)
+                                   ▼
+                        ┌─────────────────────┐
+                        │   thread subagents  │   one per Mattermost thread,
+                        │  (isolated context) │   full toolbelt, no cross-talk
+                        └─────────────────────┘
 ```
+
+One such stack per agent, six stacks in one pod, all on a single PVC holding credentials, transcripts, and memory.
 
 The pieces I cared about from the old post, and how they map:
 
