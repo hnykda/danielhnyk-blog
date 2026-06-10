@@ -1,5 +1,6 @@
-import { getAllSlugs } from "@/lib/posts";
+import { getAllSlugs, getPostExcerpt } from "@/lib/posts";
 import { notFound } from "next/navigation";
+import type { Metadata } from "next";
 
 // Generate static paths for all posts
 export async function generateStaticParams() {
@@ -50,6 +51,10 @@ export default async function PostPage({ params }: PageProps) {
             )}
           </div>
         </header>
+        {metadata.image && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={metadata.image} alt="" className="post-hero" />
+        )}
         <div className="post-content">
           <Content />
         </div>
@@ -61,18 +66,46 @@ export default async function PostPage({ params }: PageProps) {
 }
 
 // Generate metadata for each post
-export async function generateMetadata({ params }: PageProps) {
+export async function generateMetadata({
+  params,
+}: PageProps): Promise<Metadata> {
   const { slug } = await params;
 
   try {
     const post = await import(`../../../../content/${slug}.mdx`);
+    const { title, date, tags } = post.metadata;
+    const description =
+      post.metadata.description ??
+      getPostExcerpt(slug) ??
+      `A post by Daniel Hnyk.`;
+    const url = `/${slug}/`;
+
     return {
-      title: `${post.metadata.title} | Daniel Hnyk`,
-      description: post.metadata.title,
+      title,
+      description,
+      alternates: {
+        canonical: url,
+      },
+      openGraph: {
+        type: "article",
+        url,
+        siteName: "Daniel Hnyk",
+        title,
+        description,
+        publishedTime: date,
+        authors: ["Daniel Hnyk"],
+        tags,
+      },
+      twitter: {
+        card: "summary_large_image",
+        creator: "@hnykda",
+        title,
+        description,
+      },
     };
   } catch {
     return {
-      title: "Post Not Found | Daniel Hnyk",
+      title: "Post Not Found",
     };
   }
 }

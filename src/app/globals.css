@@ -171,6 +171,26 @@ footer .container {
 .post-item {
   padding: 1.5rem 0;
   border-bottom: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+}
+
+.post-item-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.post-thumb-link {
+  flex-shrink: 0;
+}
+
+.post-thumb {
+  width: 120px;
+  height: 80px;
+  object-fit: cover;
+  border-radius: 0.375rem;
+  display: block;
 }
 
 .post-item:last-child {
@@ -226,6 +246,14 @@ footer .container {
 .post-meta {
   color: var(--text-muted);
   font-size: 0.9rem;
+}
+
+.post-hero {
+  width: 100%;
+  height: auto;
+  border-radius: 0.5rem;
+  display: block;
+  margin-bottom: 2rem;
 }
 
 .post-content {

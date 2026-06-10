@@ -6,6 +6,8 @@ export interface PostMetadata {
   slug: string;
   date: string;
   tags: string[];
+  description?: string;
+  image?: string;
 }
 
 export interface Post {
@@ -51,6 +53,52 @@ export function getAllPosts(): Post[] {
     (a, b) =>
       new Date(b.metadata.date).getTime() - new Date(a.metadata.date).getTime()
   );
+}
+
+// Fallback description for posts without an explicit one: first real
+// paragraph of the MDX body, stripped of markdown, truncated at a word.
+export function getPostExcerpt(slug: string, maxLen = 160): string | undefined {
+  const filePath = path.join(contentDir, `${slug}.mdx`);
+  if (!fs.existsSync(filePath)) {
+    return undefined;
+  }
+
+  let text = fs.readFileSync(filePath, "utf-8");
+  text = text.replace(/export const metadata = {[\s\S]*?};/, "");
+  text = text.replace(/^import .*$/gm, "");
+  text = text.replace(/```[\s\S]*?```/g, "");
+
+  const paragraph = text
+    .split(/\n\s*\n/)
+    .map((p) => p.trim())
+    .find(
+      (p) =>
+        p.length > 0 &&
+        !p.startsWith("#") &&
+        !p.startsWith("---") &&
+        !p.startsWith(">") &&
+        !p.startsWith("|") &&
+        !p.startsWith("<") &&
+        // skip italic editorial notes like "*Part 1 of a series...*"
+        !(p.startsWith("*") && p.endsWith("*"))
+    );
+
+  if (!paragraph) {
+    return undefined;
+  }
+
+  let excerpt = paragraph
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, "")
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
+    .replace(/[*_`]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (excerpt.length > maxLen) {
+    excerpt = excerpt.slice(0, maxLen - 1).replace(/\s+\S*$/, "") + "…";
+  }
+
+  return excerpt;
 }
 
 export function getAllSlugs(): string[] {

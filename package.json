@@ -19,6 +19,7 @@
     "remark-gfm": "^4.0.1"
   },
   "devDependencies": {
+    "@fontsource/crimson-pro": "^5.2.8",
     "@types/node": "^20",
     "@types/react": "19.2.2",
     "@types/react-dom": "19.2.2",
