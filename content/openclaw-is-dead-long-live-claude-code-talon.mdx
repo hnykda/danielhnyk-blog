@@ -3,7 +3,7 @@ export const metadata = {
   slug: "openclaw-is-dead-long-live-claude-code-talon",
   date: "2026-06-10",
   description:
-    "Anthropic blocked Claude subscription use through OpenClaw, so I rebuilt my self-hosted multi-agent Mattermost setup on native Claude Code: Kubernetes, Helm chart, cron, persistent memory, agent-to-agent messaging. Open-sourced as talon.",
+    "An OpenClaw alternative on native Claude Code: self-hosted multi-agent harness running persistent Claude Code agents on Kubernetes with Mattermost, on the flat claude.ai Max subscription. Helm chart, cron, persistent memory, agent-to-agent messaging. Open-sourced as talon.",
   tags: ["IT", "AI", "OpenClaw", "Claude Code", "Kubernetes", "Mattermost", "self-hosting"],
   description:
     "Pay-per-use pricing killed my OpenClaw setup, so I rebuilt the core on native Claude Code in a day: persistent agent sessions in tmux, wired to Mattermost via MCP.",
@@ -16,13 +16,15 @@ I also wrote this beautiful, magnificent [tweet](https://x.com/hnykda/status/204
 
 Then Anthropic really DID stop allowing people to burn infinite Max plan tokens on stupid stuff, and the death came even for my old token that kept working much longer than those of the poor souls on reddit (and than any new token minted after their February announcement). Instead of responses from the bots I got the classic "Bump up your extra pay limit and start paying by usage, you!". Which is fair, but also pricey, and I wanted none of it.
 
+Before rewriting anything I looked for prior art. I searched for an OpenClaw alternative built on native Claude Code. For a self-hosted, multi-agent Claude Code harness. For anyone running persistent Claude Code agents on Kubernetes, bridged to Mattermost, on the flat claude.ai Max subscription. Empty hands. There are plenty of third-party harnesses (banned, same as OpenClaw), plenty of single-shot CLI wrappers, and nobody doing the boring thing: keeping real `claude` sessions alive and wiring chat into them. If one of those searches is how you got here: yes, this is that, and the repo link is at the bottom.
+
 So: be the change you want to see in the world, right?
 
 Yet another model release week blew my skull off, this time with a generation called Fables. Good timing. I pointed it at my custom OpenClaw fork and gave it one job: read my glorious blog post, rip out the short list of things I actually use, and rewrite that minimal core from scratch on **native Claude Code**. Native harness, claude.ai Max subscription, flat rate, and the parents stop complaining about me sneaking out the window.
 
 Well, me and Fables did it in less than a day of occasional babysitting (me babysitting Fables, not the other way around). And it's glorious.
 
-## What it built
+## What we built: self-hosted Claude Code agents on Kubernetes
 
 N persistent, interactive `claude` sessions, one per agent, each kept alive in tmux. Each session talks to Mattermost through a small MCP server speaking the Claude Code [channels protocol](https://code.claude.com/docs/en/channels-reference):
 
