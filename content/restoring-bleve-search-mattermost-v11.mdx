@@ -210,3 +210,21 @@ git push origin bleve-restore --force-with-lease
 ```
 
 The integration points are stable. Conflicts are unlikely. CI rebuilds and redeploys.
+
+## Update (June 2026): it never stemmed Czech
+
+Three months in, searching in Czech kept feeling off. I asked Claude Code to test it for real: post a message with inflected words through the API, then search for other forms of the same words. "strom" did not find "stromy". "kočka" did not find "kočkami". Typing "vyhledavani" without diacritics found nothing. English worked fine, "run" found "running".
+
+The en_cs analyzer above removes Czech stop words and nothing more. Porter is an English stemming algorithm. I had tuned the index for how we write and skipped the part where Czech words change their endings with every case and number.
+
+Bleve ships no Czech stemmer to turn on. Lucene has one, a light stemmer by Dolamic and Savoy that strips case endings and possessive suffixes in about 150 lines. Claude Code ported it to Go as a custom Bleve token filter, wrote a second filter that folds diacritics away (we type Czech without them half the time), and covered both with tests using real Czech word forms.
+
+Then the iteration started. The obvious move is to add both filters to the existing chain. With Porter running first, its y-to-i rule rewrote "stromy" into "stromi" before the Czech rules saw it, and the Czech suffix table chopped that into "stro". Searching "strom" found nothing. With the Czech stemmer running first, its e-removal rule turned "user" into "usr" while "users" still came out of Porter as "user". Each ordering fixed one language by breaking the other, and the unit tests caught both.
+
+One analyzer cannot serve two languages that disagree about suffixes. So the fork now indexes every message twice. A `Message` field keeps the English chain from the original setup. A new `MessageCs` field runs the Czech stemmer instead of Porter. The search query asks both fields and takes either match. Lucene's documentation recommends per-language fields for the same reason; it took two broken analyzers to appreciate why.
+
+One more failure surfaced after deploying, purging the indexes, and re-indexing. Live against the real server, "nové stromy" matched my test message and "nove stromy" returned nothing. "nové" sits in the Czech stop word list, "nove" does not. The index dropped the word, the unaccented query kept it, and the AND search demanded a token no document contains. The fix folds the stop list itself, so both spellings count as stop words.
+
+After a second purge and re-index, the whole matrix passes against the live server. Case forms match, "strom" finds "stromy" and "stromů". Diacritics fold in both directions. Multi-word queries work with or without accents, and English stemming behaves as before. The light stemmer converges case endings only, so conjugation stays out of scope: "běhat" will not find "běháme". I can live with that.
+
+The pattern from the original post held up. No upstream would build Czech search for a four-person household, and with the fork already open it cost an evening. The difference this time was the loop. Claude Code wrote the filters in minutes; ruling out the designs that don't work took unit tests, a live server, and three rounds of arguing with both.
