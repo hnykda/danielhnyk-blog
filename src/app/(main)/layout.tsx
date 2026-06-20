@@ -8,7 +8,7 @@ export default function MainLayout({
       <header>
         <nav className="nav container">
           <a href="/" className="nav-name">
-            Daniel Hnyk
+            Daniel Alder
           </a>
           <div className="nav-links">
             <a href="/about">About</a>
@@ -20,7 +20,7 @@ export default function MainLayout({
       <main className="container">{children}</main>
       <footer>
         <div className="container">
-          &copy; {new Date().getFullYear()} Daniel Hnyk
+          &copy; {new Date().getFullYear()} Daniel Alder
         </div>
       </footer>
     </>

@@ -4,7 +4,7 @@ metadata:
   name: blog
 spec:
   tls:
-    - secretName: wildcard-danielhnyk-cz-tls
+    - secretName: wildcard-danielalder-cz-tls
       hosts:
         - {{ .Values.host }}
   rules:

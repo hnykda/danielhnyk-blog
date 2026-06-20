@@ -8,6 +8,6 @@ export default function robots(): MetadataRoute.Robots {
       userAgent: "*",
       allow: "/",
     },
-    sitemap: "https://danielhnyk.cz/sitemap.xml",
+    sitemap: "https://danielalder.cz/sitemap.xml",
   };
 }

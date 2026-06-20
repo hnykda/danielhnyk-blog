@@ -3,17 +3,18 @@ import PlausibleProvider from "next-plausible";
 import "./globals.css";
 import "highlight.js/styles/github.css";
 
-const BASE_URL = "https://danielhnyk.cz";
+const BASE_URL = "https://danielalder.cz";
 
 export const metadata: Metadata = {
   metadataBase: new URL(BASE_URL),
   title: {
-    default: "Daniel Hnyk",
-    template: "%s | Daniel Hnyk",
+    default: "Daniel Alder",
+    template: "%s | Daniel Alder",
   },
   description:
-    "Personal blog of Daniel Hnyk, a Prague-based engineer writing about tech, parenting, and whatever else won't leave his head.",
+    "Personal blog of Daniel Alder, a Prague-based engineer writing about tech, parenting, and whatever else won't leave his head.",
   keywords: [
+    "Daniel Alder",
     "Daniel Hnyk",
     "software engineering",
     "blog",
@@ -21,23 +22,23 @@ export const metadata: Metadata = {
     "tech",
     "parenting",
   ],
-  authors: [{ name: "Daniel Hnyk" }],
-  creator: "Daniel Hnyk",
+  authors: [{ name: "Daniel Alder" }],
+  creator: "Daniel Alder",
   openGraph: {
     type: "website",
     locale: "en_US",
     url: BASE_URL,
-    siteName: "Daniel Hnyk",
-    title: "Daniel Hnyk",
+    siteName: "Daniel Alder",
+    title: "Daniel Alder",
     description:
-      "Personal blog of Daniel Hnyk, a Prague-based engineer writing about tech, parenting, and whatever else won't leave his head.",
+      "Personal blog of Daniel Alder, a Prague-based engineer writing about tech, parenting, and whatever else won't leave his head.",
   },
   twitter: {
     card: "summary",
     creator: "@hnykda",
-    title: "Daniel Hnyk",
+    title: "Daniel Alder",
     description:
-      "Personal blog of Daniel Hnyk, a Prague-based engineer writing about tech, parenting, and whatever else won't leave his head.",
+      "Personal blog of Daniel Alder, a Prague-based engineer writing about tech, parenting, and whatever else won't leave his head.",
   },
   robots: {
     index: true,
@@ -69,7 +70,7 @@ export default function RootLayout({
       </head>
       <body>
         <PlausibleProvider
-          domain="danielhnyk.cz"
+          domain="danielalder.cz"
           customDomain="https://plan.danielhnyk.cz"
           selfHosted
           trackOutboundLinks

@@ -2,7 +2,7 @@ export default function LandingPage() {
   return (
     <div className="landing">
       <div className="landing-content">
-        <h1>Daniel Hnyk</h1>
+        <h1>Daniel Alder</h1>
         <p className="landing-intro">
           This is a personal website of Daniel, a Prague-based engineer who
           occasionally writes about tech, parenting, and whatever else won't

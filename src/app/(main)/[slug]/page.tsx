@@ -77,7 +77,7 @@ export async function generateMetadata({
     const description =
       post.metadata.description ??
       getPostExcerpt(slug) ??
-      `A post by Daniel Hnyk.`;
+      `A post by Daniel Alder.`;
     const url = `/${slug}/`;
     // Hero image (webp) if the post has one, otherwise the generated card
     const image = post.metadata.image
@@ -93,11 +93,11 @@ export async function generateMetadata({
       openGraph: {
         type: "article",
         url,
-        siteName: "Daniel Hnyk",
+        siteName: "Daniel Alder",
         title,
         description,
         publishedTime: date,
-        authors: ["Daniel Hnyk"],
+        authors: ["Daniel Alder"],
         tags,
         images: [image],
       },

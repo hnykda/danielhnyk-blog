@@ -75,7 +75,7 @@ export async function GET(_req: Request, { params }: RouteContext) {
         }}
       >
         <div style={{ display: "flex", fontSize: 32, color: "#6b7280" }}>
-          danielhnyk.cz
+          danielalder.cz
         </div>
         <div
           style={{

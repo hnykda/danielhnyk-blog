@@ -10,6 +10,10 @@ export default function AboutPage() {
           thing.
         </p>
         <p style={{ marginBottom: "1.5rem" }}>
+          You might know me under my former name, Daniel Hnyk. My lovely wife
+          and I chose a new name when we married in June 2026.
+        </p>
+        <p style={{ marginBottom: "1.5rem" }}>
           Professionally, I'm VP of Engineering at{" "}
           <a href="https://futuresearch.ai" target="_blank" rel="noopener">
             Futuresearch

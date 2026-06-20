@@ -1,4 +1,6 @@
 image:
   repository: localhost:32000/danielhnyk-blog
   tag: latest
-host: danielhnyk.cz
+host: danielalder.cz
+# Old domain that 301-redirects (path-preserving) to host. Empty disables the redirect.
+redirectFrom: danielhnyk.cz

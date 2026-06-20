@@ -1,0 +1,28 @@
+{{- if .Values.redirectFrom }}
+# Permanent (301), path-preserving redirect from the old domain to {{ .Values.host }}.
+# e.g. https://{{ .Values.redirectFrom }}/some-post  ->  https://{{ .Values.host }}/some-post
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: blog-redirect
+  annotations:
+    nginx.ingress.kubernetes.io/permanent-redirect: "https://{{ .Values.host }}$request_uri"
+    nginx.ingress.kubernetes.io/permanent-redirect-code: "301"
+spec:
+  ingressClassName: public
+  tls:
+    - secretName: wildcard-danielhnyk-cz-tls
+      hosts:
+        - {{ .Values.redirectFrom }}
+  rules:
+    - host: {{ .Values.redirectFrom }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: blog
+                port:
+                  number: 80
+{{- end }}
