@@ -5,6 +5,15 @@ import "highlight.js/styles/github.css";
 
 const BASE_URL = "https://danielalder.cz";
 
+// Served from our own origin by nginx (see nginx.conf) instead of straight from
+// plan.danielhnyk.cz, because blocklists match the "plausible" filename and drop
+// the request inside the browser. The cast is needed because React's script prop
+// types carry no index signature for data-* attributes.
+const plausibleScriptProps = {
+  src: "/_v/s.js",
+  "data-api": "/_v/e",
+} as React.ScriptHTMLAttributes<HTMLScriptElement>;
+
 export const metadata: Metadata = {
   metadataBase: new URL(BASE_URL),
   title: {
@@ -74,6 +83,7 @@ export default function RootLayout({
           customDomain="https://plan.danielhnyk.cz"
           selfHosted
           trackOutboundLinks
+          scriptProps={plausibleScriptProps}
         >
         {children}
         <div
