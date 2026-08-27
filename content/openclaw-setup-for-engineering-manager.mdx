@@ -1,0 +1,223 @@
+export const metadata = {
+  title: "OpenClaw setup for an engineering manager",
+  slug: "openclaw-setup-for-engineering-manager",
+  date: "2026-03-18",
+  tags: ["IT", "AI", "devops", "productivity"],
+};
+
+I'm VP of Engineering at a 12-person startup. My day runs across Slack, GitHub, Notion, Gmail, Google Calendar, and Google Meet transcripts. I've been running [OpenClaw](https://openclaw.ai) self-hosted for several months. My work agent, Ace, has turned into a functional command center for engineering management -- not what I planned, but what it grew into.
+
+I wrote about [multi-agent routing](/openclaw-multi-agent-mattermost-routing/) and [Kubernetes deployment](/self-hosting-openclaw-on-kubernetes/) in earlier posts. Short version: I run four agents in one OpenClaw gateway, each with its own Mattermost bot, workspace, and personality. One handles personal life admin. One manages the household. One is a relationship coach. Ace handles work.
+
+This post covers what Ace does, how the workspace and skills are structured, and what I learned building it.
+
+## What I'm Optimizing For
+
+I built Ace around a framework I call the four pillars of operational excellence. These are the foundation I hold myself to before anything else counts:
+
+1. **Operational hygiene.** Nothing falls through. Alerts get investigated. PRs get reviewed. Open mentions get responses. Billing gets checked. If something broke and I didn't notice, I failed.
+2. **Team orientation.** I have a clear picture of every workstream: who's working on what, what's blocked, what shipped, what's stale. I can answer any question about any project without checking Slack first.
+3. **Communication.** I'm the go-to for technical questions. I'm in the threads. I respond fast. The team never wonders if I saw their message.
+4. **Technical presence.** I ship code, review PRs, and post about technical decisions. Visible without grandstanding.
+
+Ace exists to make these four things possible without spending my entire day on information gathering. The battle orientation covers pillar 2. The alerts monitor covers pillar 1. The people profiles and meeting prep cover pillar 3. Everything feeds into having time left for pillar 4: the actual engineering work.
+
+Once the foundation is solid, there's a bonus layer: individual contributions, strategic ownership, setting engineering culture. I want an automation-first engineering culture where processes are scriptable and codebases are agent-friendly. That's CTO-track thinking, not just keeping the lights on. But the pillars come first.
+
+## Workspace Structure
+
+Every agent in OpenClaw gets its own workspace directory. This is where its personality, memory, skills, and tools config live. Here's the full structure for Ace:
+
+```
+workspace-ace/
+├── AGENTS.md          # Agent behavior rules and task routing
+├── SOUL.md            # Personality, tone, priorities
+├── USER.md            # My context: role, company, key people
+├── TOOLS.md           # Environment-specific config (API tokens, endpoints)
+├── IDENTITY.md        # Agent identity card
+├── HEARTBEAT.md       # Periodic maintenance tasks
+├── MEMORY.md          # Long-term memory, distilled from daily logs
+├── memory/
+│   ├── YYYY-MM-DD.md  # Daily logs
+│   ├── corrections.md # Self-correction tracking
+│   ├── people/        # Per-person profiles (mini CRM)
+│   │   ├── alice.md
+│   │   ├── bob.md
+│   │   └── ...
+│   └── projects/      # Per-project status trackers
+│       ├── project-alpha.md
+│       └── ...
+├── skills/
+│   ├── battle-orientation/SKILL.md
+│   ├── alerts-monitor/SKILL.md
+│   ├── inbox/SKILL.md
+│   ├── meeting-intel/SKILL.md
+│   ├── meeting-prep/SKILL.md
+│   ├── notion-work/SKILL.md
+│   ├── slack-bookmarks/SKILL.md
+│   ├── transcript-extraction/SKILL.md
+│   └── work-slack/SKILL.md
+└── battle-orientation.md  # Append-only daily briefing log
+```
+
+`SOUL.md` sets the tone: direct, no corporate fluff, context-rich. `USER.md` describes my role, the company structure, and the communication dynamics I navigate. `TOOLS.md` has the environment-specific config that doesn't belong in a shared skill: Notion database IDs, Slack channel IDs, Sentry org slugs, SSH keys.
+
+Skills are markdown files with structured instructions. They're not code. They tell the agent how to approach a task, what tools to call in what order, and how to handle edge cases. I can update them with a text editor.
+
+## Daily Briefing: Battle Orientation
+
+Every morning, Ace runs a "battle orientation." The name is intentional -- I want situational awareness, not a dashboard refresh.
+
+**Steps:**
+
+1. Queries GitHub for PRs across configured repos: merged since yesterday, currently open, and stale (no activity in 3+ days). Fetches PR title, author, reviewers, and age.
+2. Queries the Notion tasks board for tasks edited in the last 24 hours. Extracts status transitions, assignee, and title.
+3. Cross-references PRs to tasks by title matching. (There's a dedicated link field in Notion, but team adoption is at 0%, so title matching is what actually works.)
+4. Reads the last 3 entries in the running orientation log to detect recurring patterns. A PR stale for one day is data. Stale for three days in a row is a conversation.
+5. Builds a per-person velocity table: PRs opened, PRs merged, tasks moved.
+6. Generates a copy-paste-ready update for my CEO. Short, structured, covers what's shipping and what's at risk.
+7. Appends the full briefing to `battle-orientation.md` as an immutable log.
+
+The pattern detection is what I didn't expect to care about. When the same blocked item shows up three days running, it stops being a data point and becomes a conversation I've been avoiding. That distinction is useful.
+
+The CEO update draft saves about 15 minutes. More than the time, it offloads the translation from GitHub/Notion state into executive language. That translation is real work and I hated doing it. Ace does it consistently.
+
+## People Profiles: The Mini CRM
+
+Ace keeps a markdown file for each person on my team and key stakeholders -- structured markdown with sections that update incrementally, not a formal database.
+
+Here's what a typical profile looks like:
+
+```markdown
+# Alice — Engineer (Direct Report)
+
+## Profile
+- Role: Engineer, direct report
+- Focus: Session optimization, performance work
+
+## Current State (Mar 2026)
+- Working on session optimization -- implement ID reuse for efficiency
+- PR essentially done, coordinating with Bob on race conditions
+
+## Signals
+- Expressed skepticism on a feature's priority vs. fixing existing bugs
+  -- reasonable pushback, worth watching for friction with leadership
+- Showed me a friend making serious money on a side project
+  -- passive signal that alternatives exist (retention flag)
+
+## Recent
+- Actively picking and assigning front-end bugs (launch prep phase)
+- Energy: Task-focused, self-driven, no friction signals
+
+## 1:1 Topics
+- Follow up: API migration blocker resolved?
+- Ask about race condition coordination with Bob
+```
+
+Three things update these files: meeting transcripts (Ace extracts relevant signals after processing), battle orientation (stale PRs get flagged into the person's file), and my own notes added during or after a conversation.
+
+The payoff is 1:1 prep. Instead of "so, what are you working on?", I open with "last time the API migration was blocking you -- did that resolve?" My team thinks I have a good memory. I don't.
+
+## Skills: What Each One Does
+
+### Battle Orientation
+
+Queries GitHub PRs (merged, open, stale) across configured repos since yesterday. Queries the Notion tasks board for recently edited tasks. Cross-references PRs to tasks by title matching (dedicated link field exists but team adoption is 0%). Checks the last 3 entries in the orientation log for recurring patterns (same PR stale 3+ days triggers escalation). Generates a per-person velocity table. Includes a copy-paste-ready CEO update draft. Appends to a running log file.
+
+### Alerts Monitor
+
+Reads configured Slack alert channels every hour using a user token (not a bot -- this means no channel membership required). For each alert without a 🔧 reaction (unprocessed), spawns a subagent to investigate via the Sentry API and GitHub commit history. Posts a summary to the team channel with findings and likely cause. Marks processed alerts with 🔧 so they don't get picked up again. The subagent spawning matters: investigation runs in parallel, not sequentially, so a burst of three alerts doesn't take three times as long.
+
+### Inbox
+
+Sweeps Gmail for unread email. Categorizes by type: meeting transcript, newsletter, action-required, FYI. For meeting transcripts, hands off to the transcript extraction skill. For action-required items, suggests a response or Notion task. Posts a triage summary with counts and anything that needs my attention. The categorization is heuristic-based and occasionally wrong; I correct it in Mattermost and the correction goes into `memory/corrections.md`.
+
+### Meeting Intel
+
+Takes extracted transcript text (from the transcript extraction skill). Identifies speakers from the transcript header. Extracts: decisions made, action items with owners, team signals (who said what about what), and strategic opportunities. Creates Notion tasks for action items with the meeting title, date, and transcript excerpt as context. Updates relevant people profiles with new signals. Posts a summary to my Mattermost channel.
+
+### Meeting Prep
+
+Maintains `meeting-preps.md`, a scratchpad of per-person prep notes. When I say "for my call with Alice, remind me to ask about the race condition," that goes into the file. A cron fires 15 minutes before each scheduled meeting, reads the attendee's people profile, checks recent PR and Slack activity, and surfaces any stored prep notes. The reminder posts to Mattermost so I see it on my phone or laptop before I join.
+
+### Notion Work
+
+Full CRUD on Notion databases. Routes tasks between my personal tracker (private, not visible to the team) and the main board (team-visible). Handles the API quirks that trip things up: status names are case-sensitive and silently fail if wrong, trashed databases still appear in search results and need explicit filtering, rate limits hit around 3 requests per second so bulk operations need serialization. Documents team member Notion UUIDs for people-based filters, since name matching against the API is unreliable.
+
+### Slack Bookmarks
+
+Scans for messages I reacted to with 🔖. Extracts the full thread context around each bookmarked message. Surfaces them during inbox sweeps with a summary of what the thread contained. This is how I say "I'll deal with this later" without losing it. The skill uses the Slack reactions API rather than the bookmarks or stars API, which are both unreliable.
+
+### Transcript Extraction
+
+Google Meet records transcripts and Gemini summaries, then emails them to participants. The flow: I enable Google's built-in transcript feature for a meeting. After the call, Google emails me a link to a Google Doc containing the transcript (or sometimes a Gemini-generated summary, or sometimes inline content in the email body). Ace picks this up during an inbox sweep, uses `gog` (a Google Workspace CLI) to fetch the Doc contents, and normalizes everything to plain text.
+
+The extraction skill handles all the format variants: Gemini summaries (shorter, sometimes miss key details), full verbatim transcripts (long, noisy, but complete), inline email content (no Doc link to follow), and Google Doc links that need a separate API fetch. Having extraction isolated means when Google changes the format (and they do), I fix one skill and meeting intel keeps working without touching it.
+
+### Work Slack
+
+Reads Slack channels using a user token rather than a bot token. Ace sees exactly what I see: every channel I'm in, full message history within the retention window, thread replies. Used by the alerts monitor for reading alert channels and by ad-hoc queries when I want to check what happened in a channel.
+
+## Cron Jobs
+
+The automation layer ties the skills together. Each cron runs as a full Ace session with complete workspace context, not as an isolated script.
+
+| Job | Schedule | What it does |
+|-----|----------|-------------|
+| Battle orientation | Daily, 7:30am | GitHub + Notion cross-reference briefing, pattern detection, CEO update draft |
+| Standup prep | 15 min before weekly standup | Team task overview with recent signals, optimized for running the meeting |
+| Alerts monitor | Hourly | Reads Slack alert channels, investigates new alerts via Sentry and GitHub, posts summary |
+| Meeting intel sweep | Twice daily | Checks inbox for new meeting transcripts, processes any found |
+| CEO update reminder | 4:30pm | Posts a nudge to send my daily status update. Silence reads as problems. |
+
+The CEO update reminder earns its place. Left to myself, I send updates when things are going well and go quiet when they're not -- which is exactly backwards. The 4:30 nudge is one line. It just asks: did you send an update today? Most days I had, and I dismiss it. Some days I hadn't, and I write two sentences. Silence reads as problems, so even a thin update beats nothing.
+
+## Memory System
+
+Ace writes to `memory/YYYY-MM-DD.md` during every session: decisions, things I asked it to track, people profile updates. Once a week a heartbeat cron distills the recent daily logs into `MEMORY.md`, a rolling long-term context file.
+
+`memory/corrections.md` logs every correction I make. After three occurrences of the same mistake, the correction gets promoted to a standing rule in `AGENTS.md` or the relevant skill. The agent from six months ago makes different mistakes than the agent today -- not because I retrained anything, but because the corrections accumulated.
+
+For searching across sessions, Ace uses `lcm_grep` with `allConversations: true`. OpenClaw sessions get new conversation IDs when they restart. Without that flag, the agent searches only the current session and claims it has no history. It's a specific gotcha worth knowing about.
+
+## Separating Work from Personal
+
+My personal agent and Ace share nothing. When I ask my personal agent something, it has no access to my CEO's communication style, team risk assessments, or production alerts. The separation keeps the two mental modes from bleeding into each other.
+
+The rule I enforce strictly in `AGENTS.md`: confidential work information stays in the workspace. Ace calls nothing beyond what I've explicitly configured (Notion, Sentry, Slack, GitHub). Each skill documents what APIs it touches.
+
+## Communication Coaching
+
+Ace helps me communicate with my CEO -- not by writing messages for me, but by flagging when I'm leading with a problem instead of a solution, or when a draft is going to land wrong.
+
+My CEO processes through narrative rather than data. He responds well to concrete commitments with dates, poorly to defensiveness or vague promises. I've learned this over two years; it's documented in `USER.md`. When I ask Ace for feedback on a draft, it applies that context.
+
+The consistent note it gives: lead with what you're doing and when it'll be done, not with questions about priority. Two years of working relationship compressed into a line in a markdown file.
+
+## What Actually Broke (and What I Fixed)
+
+**Third-party API quirks will break you on day one.** Notion, Sentry, Slack -- every API has undocumented behaviors, silent failures, and version-specific field names. The agent called the Notion API with the wrong field names and got cryptic errors. The fix took five minutes. Finding the fix took an hour. Now every skill file documents the API quirks it depends on, and the agent reads the skill file before making any call. If your skill touches an external API, document the gotchas inline.
+
+**Two people with the same name.** My CEO and I are both named Dan. The agent kept mixing us up when processing meeting transcripts: attributing decisions to the wrong person, putting action items on the wrong task. Required an explicit correction rule and a disambiguation mapping in `corrections.md`. I should have caught this before the first transcript ran. If your company has any name collisions, build the disambiguation in early.
+
+**Battle orientation went through several rounds.** "Stale" needed a definition. Bot PRs (Dependabot, automated CI commits) flooded the report until I added a filter. The cross-referencing logic between PRs and Notion tasks needed iteration on what counts as a match. I ran it daily for three weeks before it stopped producing noise. Each skill takes longer than you expect to tune; budget for that.
+
+**The PR link field in Notion has 0% adoption.** There's a dedicated field for linking PRs to tasks. Nobody on the team uses it. Battle orientation falls back to fuzzy title matching, which works maybe 70% of the time, and flags the gap in every single report. I've stopped expecting this to change. Design for how people actually work.
+
+**Memory files pile up.** Daily logs accumulate fast. Without periodic distillation into `MEMORY.md`, the agent's long-term context degrades -- it has the logs but doesn't surface them reliably in conversation. The heartbeat cron handles distillation now, but early on I lost context I thought I'd kept. Set up the distillation cron before the logs get long.
+
+**`corrections.md` is more useful than I expected.** When the agent makes the same mistake twice, it logs it. After three occurrences, the correction becomes a standing rule. I built this mostly as a debugging tool. It turned into a compounding improvement mechanism. The agent from six months ago makes different mistakes than the agent today -- not because I retrained anything, but because the corrections accumulated.
+
+**One agent, not two, was the tempting mistake.** Early on I considered consolidating Ace and my personal agent into one. Glad I didn't. Work agent and personal agent share nothing. The work agent has never surfaced personal context in a work channel. The personal agent doesn't know my team dynamics. The separation is mostly invisible until you imagine what would go wrong without it.
+
+**User token vs bot token for Slack.** Started with a bot token. Hit channel membership issues on channels the bot wasn't in. Switched to a user token: reads everything the user sees, no membership required. The trade-off is no write access for messages, but I didn't need that for monitoring. If you're building read-heavy Slack integrations, start with the user token.
+
+## What the Time Math Actually Looks Like
+
+Battle orientation saves 20-30 minutes each morning. Meeting prep saves 10-15 minutes per 1:1. The alerts monitor caught production issues before anyone else noticed -- three times in two months. Inbox sweeps take what used to be a 20-minute morning ritual down to a 5-minute scan.
+
+Harder to count: fewer things fall through. The PR that went stale got caught on day 3 instead of day 10. The action item from a meeting two weeks prior became a Notion task automatically and got done.
+
+I manage five people directly and coordinate across a 12-person team. Tracking all of it across Slack, GitHub, Notion, email, and calendar is a real cognitive load. Ace handles the information gathering and formatting well enough that I can spend time on what requires judgment: the 1:1 where someone needs honest feedback, the call where the data won't give me the answer.
+
+If you manage a team and already self-host anything, the barrier to trying this is an afternoon. [OpenClaw](https://openclaw.ai) is on GitHub. The skills are markdown files. The configuration is JSON.
