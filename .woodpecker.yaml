@@ -30,4 +30,4 @@ steps:
     commands:
       - mkdir -p ~/.kube
       - echo "$KUBECONFIG_DATA" | base64 -d > ~/.kube/config
-      - helm upgrade --install blog ./chart --namespace apps --rollback-on-failure --timeout 5m --set image.tag=sha-${CI_COMMIT_SHA:0:8}
+      - helm upgrade --install blog ./chart --namespace apps --rollback-on-failure --timeout 5m --set-string image.tag=sha-${CI_COMMIT_SHA:0:8}
