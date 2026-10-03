@@ -6,8 +6,12 @@ kind: Ingress
 metadata:
   name: blog-redirect
   annotations:
-    nginx.ingress.kubernetes.io/permanent-redirect: "https://{{ .Values.host }}$request_uri"
-    nginx.ingress.kubernetes.io/permanent-redirect-code: "301"
+    # Traefik's ingress-nginx provider doesn't expand $request_uri in
+    # permanent-redirect (drops the path), but does in snippets. ssl-redirect
+    # off so http:// also goes straight to the target in one hop.
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      return 301 https://{{ .Values.host }}$request_uri;
 spec:
   ingressClassName: public
   tls:
