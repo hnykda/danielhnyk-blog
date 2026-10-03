@@ -1,19 +1,27 @@
 {{- if .Values.redirectFrom }}
-# Permanent (301), path-preserving redirect from the old domain to {{ .Values.host }}.
-# e.g. https://{{ .Values.redirectFrom }}/some-post  ->  https://{{ .Values.host }}/some-post
+# Permanent, path- and query-preserving redirect from the old domain to {{ .Values.host }}.
+# e.g. https://{{ .Values.redirectFrom }}/some-post?x=1  ->  https://{{ .Values.host }}/some-post?x=1
+# 301 for GET/HEAD, 308 otherwise.
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: {{ .Release.Name }}-redirect
+spec:
+  redirectRegex:
+    regex: ^https?://[^/]+(.*)$
+    replacement: https://{{ .Values.host }}${1}
+    permanent: true
+---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: blog-redirect
   annotations:
-    # Traefik's ingress-nginx provider doesn't expand $request_uri in
-    # permanent-redirect (drops the path), but does in snippets. ssl-redirect
-    # off so http:// also goes straight to the target in one hop.
-    nginx.ingress.kubernetes.io/ssl-redirect: "false"
-    nginx.ingress.kubernetes.io/configuration-snippet: |
-      return 301 https://{{ .Values.host }}$request_uri;
+    # Routed on both entry points so http:// goes straight to the target in one hop.
+    traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
+    traefik.ingress.kubernetes.io/router.middlewares: {{ .Release.Namespace }}-{{ .Release.Name }}-redirect@kubernetescrd
 spec:
-  ingressClassName: public
+  ingressClassName: traefik
   tls:
     - secretName: wildcard-danielhnyk-cz-tls
       hosts:
@@ -26,6 +34,7 @@ spec:
             pathType: Prefix
             backend:
               service:
+                # Never reached; the middleware answers.
                 name: blog
                 port:
                   number: 80

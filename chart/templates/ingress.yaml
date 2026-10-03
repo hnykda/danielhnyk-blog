@@ -3,6 +3,7 @@ kind: Ingress
 metadata:
   name: blog
 spec:
+  ingressClassName: traefik
   tls:
     - secretName: wildcard-danielalder-cz-tls
       hosts:
