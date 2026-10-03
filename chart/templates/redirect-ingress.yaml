@@ -26,8 +26,44 @@ spec:
     - secretName: wildcard-danielhnyk-cz-tls
       hosts:
         - {{ .Values.redirectFrom }}
+        {{- if .Values.wwwRedirect }}
+        - www.{{ .Values.redirectFrom }}
+        {{- end }}
   rules:
-    - host: {{ .Values.redirectFrom }}
+    {{- $hosts := list .Values.redirectFrom }}
+    {{- if .Values.wwwRedirect }}{{ $hosts = append $hosts (printf "www.%s" .Values.redirectFrom) }}{{ end }}
+    {{- range $hosts }}
+    - host: {{ . }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                # Never reached; the middleware answers.
+                name: blog
+                port:
+                  number: 80
+    {{- end }}
+{{- end }}
+{{- if .Values.wwwRedirect }}
+---
+# www.{{ .Values.host }} -> https://{{ .Values.host }}, path + query kept (shared middleware).
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: blog-www-redirect
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
+    traefik.ingress.kubernetes.io/router.middlewares: traefik-www-to-apex@kubernetescrd
+spec:
+  ingressClassName: traefik
+  tls:
+    - secretName: wildcard-danielalder-cz-tls # *.danielalder.cz
+      hosts:
+        - www.{{ .Values.host }}
+  rules:
+    - host: www.{{ .Values.host }}
       http:
         paths:
           - path: /
