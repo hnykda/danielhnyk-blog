@@ -5,22 +5,26 @@ when:
 variables:
   - &registry "registry.container-registry:5000"
   - &helm_image "alpine/helm:4.0.4"
-  - &buildkit_config |
-      [registry."registry.container-registry:5000"]
-      http = true
 
 steps:
   - name: build
-    image: woodpeckerci/plugin-docker-buildx:5-insecure
+    image: woodpeckerci/plugin-docker-buildx:6.1.2
     settings:
       repo: registry.container-registry:5000/danielhnyk-blog
       registry: *registry
       tag: sha-${CI_COMMIT_SHA:0:8}
       platforms: linux/amd64
       insecure: true
-      buildkit_config: *buildkit_config
-      cache_images:
-        - registry.container-registry:5000/danielhnyk-blog:cache
+      provenance: false
+      # buildx v6: buildkit_config only exists in the -insecure build, and the
+      # 6.x -insecure images (>= 6.0.2) ship without it (codeberg
+      # woodpecker-plugins/docker-buildx#315). Mark the plain-HTTP in-cluster
+      # registry insecure per operation instead. cache_from/cache_to replace
+      # cache_images (same :cache ref, mode=max); cache_from splits on commas,
+      # hence the \, escapes.
+      output: type=image,push=true,registry.insecure=true,rewrite-timestamp=true
+      cache_from: type=registry\,ref=registry.container-registry:5000/danielhnyk-blog:cache\,registry.insecure=true
+      cache_to: type=registry,ref=registry.container-registry:5000/danielhnyk-blog:cache,mode=max,image-manifest=true,oci-mediatypes=true,registry.insecure=true
 
   - name: deploy
     image: *helm_image
