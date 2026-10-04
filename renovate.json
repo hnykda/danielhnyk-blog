@@ -1,0 +1,91 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "description": [
+    "Weekly dependency PRs (Mend Renovate GitHub App). Same shape in every hnykda app repo; infra config lives in hnykda/server-files renovate.json.",
+    "No automerge: PRs get no CI (Woodpecker here only builds+deploys on push to main), so merging is the test. Merge = rebuild + deploy."
+  ],
+  "extends": [
+    "config:recommended"
+  ],
+  "timezone": "Europe/Prague",
+  "schedule": [
+    "* 5-9 * * 1"
+  ],
+  "labels": [
+    "dependencies"
+  ],
+  "dependencyDashboard": true,
+  "automerge": false,
+  "lockFileMaintenance": {
+    "enabled": true,
+    "schedule": [
+      "* 5-9 1-7 * 1"
+    ]
+  },
+  "packageRules": [
+    {
+      "description": "Our own images in the in-cluster registry (tag = commit SHA set by CI).",
+      "matchPackageNames": [
+        "registry.container-registry:5000/**",
+        "localhost:32000/**"
+      ],
+      "enabled": false
+    },
+    {
+      "description": "engines.node moves deliberately with the Dockerfile base image.",
+      "matchDepTypes": [
+        "engines"
+      ],
+      "enabled": false
+    },
+    {
+      "matchManagers": [
+        "npm"
+      ],
+      "rangeStrategy": "bump",
+      "minimumReleaseAge": "3 days"
+    },
+    {
+      "description": "One weekly PR for all non-major npm updates.",
+      "matchManagers": [
+        "npm"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "patch"
+      ],
+      "groupName": "npm deps (non-major)"
+    },
+    {
+      "description": "One weekly PR for Dockerfile base images + CI step images (node 24 / nginx 1.31 lines; majors separate).",
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "patch"
+      ],
+      "groupName": "docker images (non-major)"
+    },
+    {
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "labels": [
+        "dependencies",
+        "major"
+      ]
+    },
+    {
+      "description": "Library majors (TS 7, ESLint 10, Tailwind 4, zod 4, ...) mostly carry no security value (2026-10-03 sweep: skip unless needed): listed on the dependency dashboard, tick the box to get the PR. Vulnerability fixes bypass this. Docker/helm/CI majors still open PRs directly.",
+      "matchManagers": [
+        "npm",
+        "pep621"
+      ],
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "dependencyDashboardApproval": true
+    }
+  ]
+}
