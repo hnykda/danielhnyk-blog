@@ -13,13 +13,13 @@ I have kept my notes in Logseq for years. Daily journal, nested bullets, `[[link
 
 Three things kept bugging me.
 
-**Sync.** I write on a laptop and a phone. Logseq's file graph syncs through whatever you point at the folder, and the result on iOS ranges from "fine" to "where did my morning's journal go". Logseq's own answer is the new DB version, which drops markdown as the source of truth. I wanted the opposite: one copy of the data I own, on every device, that reconciles on its own.
+**Sync.** I write on a laptop and a phone. Logseq's syncs is paid, and non-existent on iOS on the DB version... 
 
 **Agents.** Half my day now runs through Claude Code agents (see [talon](/openclaw-is-dead-long-live-claude-code-talon)). I want them to read my notes, find the page about a project, and add a bullet under the right parent. With a folder of markdown files the agent ends up rewriting whole files and hoping nothing else touched them in the meantime. That works until it doesn't, and with sync in the mix it doesn't pretty fast.
 
 **Hackability.** Logseq is a big ClojureScript codebase. Every time I wanted a small change I gave up before I found the right file.
 
-So I wrote my own. Well, me and Claude Code did: about 900 commits over three and a half weeks, with me deciding scope, using it daily and filing bugs, and agents doing most of the typing. It's MIT licensed and lives at [github.com/hnykda/nooklet](https://github.com/hnykda/nooklet), with docs at [nooklet.danielalder.cz](https://nooklet.danielalder.cz).
+So I wrote my own. Well, me and Claude Code did: about 900 commits during two weekends, with me deciding scope, using it daily and filing bugs, and agents doing most of the typing. It's MIT licensed and lives at [github.com/hnykda/nooklet](https://github.com/hnykda/nooklet), with docs at [nooklet.danielalder.cz](https://nooklet.danielalder.cz).
 
 ## What it is
 
