@@ -1,0 +1,63 @@
+export const metadata = {
+  title: "nooklet: a local-first outliner my agents can actually use",
+  slug: "nooklet-local-first-outliner-for-agents",
+  description:
+    "I built nooklet, an open-source, self-hosted outliner in the spirit of Logseq: SQLite on every device, offline sync through a home server, a plain markdown mirror, and an MCP server so Claude Code can edit my notes one bullet at a time.",
+  date: "2026-10-04",
+  tags: ["IT", "AI", "Claude Code", "self-hosting"],
+};
+
+I have kept my notes in Logseq for years. Daily journal, nested bullets, `[[links]]` everywhere, a pile of TODOs that I cycle with `Cmd+Enter`. I like the shape a lot. What I stopped liking is everything around it.
+
+## Why
+
+Three things kept bugging me.
+
+**Sync.** I write on a laptop and a phone. Logseq's file graph syncs through whatever you point at the folder, and the result on iOS ranges from "fine" to "where did my morning's journal go". Logseq's own answer is the new DB version, which drops markdown as the source of truth. I wanted the opposite: one copy of the data I own, on every device, that reconciles on its own.
+
+**Agents.** Half my day now runs through Claude Code agents (see [talon](/openclaw-is-dead-long-live-claude-code-talon)). I want them to read my notes, find the page about a project, and add a bullet under the right parent. With a folder of markdown files the agent ends up rewriting whole files and hoping nothing else touched them in the meantime. That works until it doesn't, and with sync in the mix it doesn't pretty fast.
+
+**Hackability.** Logseq is a big ClojureScript codebase. Every time I wanted a small change I gave up before I found the right file.
+
+So I wrote my own. Well, me and Claude Code did: about 900 commits over three and a half weeks, with me deciding scope, using it daily and filing bugs, and agents doing most of the typing. It's MIT licensed and lives at [github.com/hnykda/nooklet](https://github.com/hnykda/nooklet), with docs at [nooklet.danielalder.cz](https://nooklet.danielalder.cz).
+
+## What it is
+
+nooklet is an outliner for one person with several devices. If you have used Logseq, Roam or Obsidian's outliner, you already know how to use it: nested bullets, `[[page]]` and `#tag` links, linked and unlinked references, namespaces, properties, a journal stream with a calendar, and tasks with `TODO`/`DOING`/`DONE` markers, scheduled and deadline dates. It imports a Logseq file graph.
+
+The interesting parts are underneath.
+
+**Local-first.** Every device (desktop app, browser, iPhone) holds the whole graph in SQLite and works offline. Edits go into an op log with hybrid logical clocks. When a device reconnects, it trades ops with a self-hosted server and they converge. The server is optional: one laptop with no server is a perfectly normal way to run it.
+
+**Agents are first-class users.** Every operation the app performs is defined once, and that one definition becomes an HTTP endpoint, an OpenAPI entry, an MCP tool and a method on the typed client. So Claude Code gets exactly what the UI gets: search (keyword, semantic or hybrid), read a page with stable block ids, append markdown under a block, replace an exact substring inside one bullet, run an atomic batch and undo it. Each agent has its own token, and its label shows up in page history as the author of its edits. Hooking it up is one line:
+
+```sh
+claude mcp add --transport http nooklet https://<your-server>/g/default/mcp \
+  --header "Authorization: Bearer <token>"
+```
+
+**A markdown mirror you can walk away with.** The server writes every page to a plain markdown file with a stable `^id` on each block. Logseq and Obsidian can open the folder, and `grep` and `git` work on it. SQLite holds the truth, the files are a copy, and if nooklet dies tomorrow your notes are still sitting there as text.
+
+**Everything optional is off.** Sync needs a device you pair. AI access needs a token you mint. Semantic search needs an embedding model you run (any Ollama model). Skip all three and you have a local outliner with a markdown mirror.
+
+**Plugins.** Features can ship as TypeScript plugins on both the server and the client. Mermaid diagrams, word count and a daily summary are built in as plugins, mostly to keep the plugin API honest.
+
+## What it is not
+
+No flashcards, no whiteboards, no kanban, no real-time co-editing, no multi-user accounts, no hosted service. The scope stays at outliner, tasks, links, search, sync and an API agents can use. I would rather have a small thing that works than a big thing that almost works.
+
+## State of things
+
+I use it daily on my Mac and my phone, and I run the server on my home Kubernetes cluster, reachable only over Tailscale. The everyday stuff works: editing, nesting, links and tags, journals, tasks, images, search, sync both ways. It is not bug-free, the phone UI still has rough edges, and you build the desktop and iOS apps from source for now. Expect breaking changes before 1.0.
+
+If you live in Logseq and any of the above itches the same way it itched me, give it a go:
+
+```sh
+git clone https://github.com/hnykda/nooklet.git
+cd nooklet
+pnpm install
+pnpm --filter @nooklet/web build
+pnpm nooklet serve
+```
+
+Then open `http://127.0.0.1:6100` and import your graph with `pnpm nooklet import /path/to/graph`. Issues and PRs are welcome on [GitHub](https://github.com/hnykda/nooklet), and so is a well-argued "you should support X", even if the answer is "no, because".
