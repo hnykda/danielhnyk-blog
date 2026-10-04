@@ -86,6 +86,13 @@
         "major"
       ],
       "dependencyDashboardApproval": true
+    },
+    {
+      "description": "The buildx plugin must match WOODPECKER_PLUGINS_PRIVILEGED on the Woodpecker server (exact tag, managed in hnykda/server-files). Bumped by hand together with server-files, never here.",
+      "matchPackageNames": [
+        "woodpeckerci/plugin-docker-buildx"
+      ],
+      "enabled": false
     }
   ]
 }
