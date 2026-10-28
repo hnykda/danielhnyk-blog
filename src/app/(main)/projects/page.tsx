@@ -31,7 +31,7 @@ export default function ProjectsPage() {
           <p style={{ color: "var(--text-muted)" }}>
             Local-first outliner in the spirit of Logseq, with offline sync
             through a self-hosted server and an MCP server so AI agents can edit
-            notes one bullet at a time. See
+            notes one bullet at a time. See{" "}
             <a
               href="https://nooklet.danielalder.cz"
               target="_blank"
@@ -60,7 +60,17 @@ export default function ProjectsPage() {
             </a>
           </h2>
           <p style={{ color: "var(--text-muted)" }}>
-            Tool for creating WiFi signal heatmaps.
+            Desktop app for macOS, Windows and Linux that measures Wi-Fi signal
+            strength and speed as you walk around, and draws heat maps of the
+            results on your floor plan. See{" "}
+            <a
+              href="https://wifi-heatmapper.danielalder.cz"
+              target="_blank"
+              rel="noopener"
+            >
+              wifi-heatmapper.danielalder.cz
+            </a>
+            .
           </p>
         </li>
         <li style={{ marginBottom: "1.5rem" }}>
